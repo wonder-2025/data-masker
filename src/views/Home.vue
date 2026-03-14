@@ -119,10 +119,10 @@
     <div class="format-tips">
       <el-alert type="info" :closable="false">
         <template #title>
-          支持：PDF、Word (.docx)、Excel (.xlsx/.xls)、PPT (.pptx)、TXT、CSV、JSON、PNG/JPG 图片
+          支持：PDF、Word (.docx)、Excel (.xlsx/.xls)、PPT (.pptx)、TXT、CSV、JSON
         </template>
         <template #default>
-          注意：旧版 Office 格式 (.doc/.ppt) 暂不支持，请转换为新版格式
+          注意：旧版 Office 格式 (.doc/.ppt) 及图片格式暂不支持
         </template>
       </el-alert>
     </div>
@@ -198,7 +198,7 @@ async function openFile(file) {
 .home-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 12px;
 }
 
 // 欢迎区域 - 紧凑版
@@ -206,21 +206,21 @@ async function openFile(file) {
   .welcome-header {
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 16px;
 
     .welcome-text {
       flex: 1;
 
       .welcome-title {
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 700;
         color: #303133;
         margin: 0;
       }
 
       .welcome-desc {
-        font-size: 14px;
+        font-size: 12px;
         color: #909399;
         margin: 4px 0 0;
       }
@@ -234,15 +234,15 @@ async function openFile(file) {
   .feature-cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
+    gap: 10px;
 
     .feature-card {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       background: #fff;
       border-radius: 8px;
-      padding: 16px;
+      padding: 12px;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
       transition: transform 0.2s, box-shadow 0.2s;
 
@@ -253,14 +253,14 @@ async function openFile(file) {
 
       .feature-content {
         h3 {
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 600;
           color: #303133;
           margin: 0 0 2px;
         }
 
         p {
-          font-size: 12px;
+          font-size: 11px;
           color: #909399;
           margin: 0;
         }
@@ -273,8 +273,8 @@ async function openFile(file) {
 .stats-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-top: 20px;
+  gap: 10px;
+  margin-top: 16px;
 
   .stat-card {
     display: flex;
@@ -283,17 +283,17 @@ async function openFile(file) {
     gap: 4px;
     background: #fff;
     border-radius: 8px;
-    padding: 16px;
+    padding: 12px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 
     .stat-value {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
       color: #303133;
     }
 
     .stat-label {
-      font-size: 12px;
+      font-size: 11px;
       color: #909399;
     }
   }
@@ -303,12 +303,12 @@ async function openFile(file) {
 .guide-section {
   background: #fff;
   border-radius: 8px;
-  padding: 16px 20px;
-  margin-top: 20px;
+  padding: 12px 20px;
+  margin-top: 16px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 
   h3 {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: #303133;
     margin: 0 0 12px;
@@ -318,7 +318,7 @@ async function openFile(file) {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    gap: 10px;
 
     .guide-step {
       display: flex;
@@ -331,7 +331,7 @@ async function openFile(file) {
         border-radius: 50%;
         background: linear-gradient(135deg, #409EFF 0%, #36D1DC 100%);
         color: #fff;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         display: flex;
         align-items: center;
@@ -339,7 +339,7 @@ async function openFile(file) {
       }
 
       .step-text {
-        font-size: 13px;
+        font-size: 12px;
         color: #606266;
       }
     }
@@ -350,8 +350,8 @@ async function openFile(file) {
 .recent-section {
   background: #fff;
   border-radius: 8px;
-  padding: 16px 20px;
-  margin-top: 20px;
+  padding: 12px 20px;
+  margin-top: 16px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 
   .section-header {
@@ -361,7 +361,7 @@ async function openFile(file) {
     margin-bottom: 12px;
 
     h3 {
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 600;
       color: #303133;
       margin: 0;
@@ -382,7 +382,7 @@ async function openFile(file) {
 
       .file-name {
         flex: 1;
-        font-size: 13px;
+        font-size: 12px;
         color: #303133;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -390,7 +390,7 @@ async function openFile(file) {
       }
 
       .file-time {
-        font-size: 12px;
+        font-size: 11px;
         color: #909399;
       }
     }
@@ -399,7 +399,7 @@ async function openFile(file) {
 
 // 格式提示
 .format-tips {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 // 响应式布局
