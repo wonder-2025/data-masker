@@ -178,7 +178,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore } from '@/stores/files'
 import { useResultStore } from '@/stores/result'
@@ -421,6 +421,14 @@ onMounted(() => {
       })
     }
   })
+})
+
+// 组件卸载时清理ECharts实例
+onUnmounted(() => {
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
 })
 </script>
 

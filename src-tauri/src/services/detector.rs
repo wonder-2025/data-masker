@@ -206,7 +206,7 @@ impl Detector {
                 let chars: Vec<char> = text.chars().collect();
                 let len = chars.len();
                 let keep_start = config.keep_start.min(len);
-                let keep_end = config.keep_end.min(len - keep_start);
+                let keep_end = config.keep_end.min(len.saturating_sub(keep_start));
                 
                 let mut result = String::new();
                 
@@ -216,7 +216,7 @@ impl Detector {
                 }
                 
                 // 脱敏中间部分
-                let mask_len = len - keep_start - keep_end;
+                let mask_len = len.saturating_sub(keep_start).saturating_sub(keep_end);
                 result.push_str(&config.mask_char.repeat(mask_len));
                 
                 // 保留后几位
