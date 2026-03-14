@@ -49,8 +49,10 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          # 移除 MinGW 路径，避免与 MSVC 工具链冲突
-          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'mingw' }) -join ';'
+          # 移除 Strawberry Perl 和 MinGW 路径，避免与 MSVC 工具链冲突
+          $env:PATH = ($env:PATH -split ';' | Where-Object { 
+            $_ -notmatch 'mingw' -and $_ -notmatch 'Strawberry' 
+          }) -join ';'
           echo "PATH=$env:PATH" >> $env:GITHUB_ENV
 
       - name: Rust cache
