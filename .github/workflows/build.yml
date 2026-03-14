@@ -40,15 +40,29 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || 'x86_64-pc-windows-msvc' }}
+
+      - name: Remove MinGW from PATH (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          # 移除 MinGW 路径，避免与 MSVC 工具链冲突
+          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'mingw' }) -join ';'
+          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
+      - name: Clean npm cache
+        run: npm cache clean --force
+
+      - name: Remove package-lock.json
+        run: rm -f package-lock.json
+
       - name: Install frontend dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
