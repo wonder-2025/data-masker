@@ -375,3 +375,44 @@ fn read_xlsx_preview(path: &PathBuf) -> Result<String, String> {
 fn read_pptx_preview(_path: &PathBuf) -> Result<String, String> {
     Ok("[PowerPoint 文件预览暂不支持]".to_string())
 }
+
+/// 扫描文件夹中的支持文件
+#[command]
+pub async fn scan_folder(path: String) -> Result<Vec<FileInfo>, String> {
+    let folder_path = PathBuf::from(&path);
+    
+    if !folder_path.exists() || !folder_path.is_dir() {
+        return Err(format!("文件夹不存在: {}", path));
+    }
+    
+    let supported_extensions = [
+        "pdf", "docx", "doc", "xlsx", "xls", 
+        "txt", "md", "csv", "json", "xml", "pptx"
+    ];
+    
+    let mut files = Vec::new();
+    
+    fn scan_dir(dir: &PathBuf, files: &mut Vec<FileInfo>, extensions: &[&str]) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    scan_dir(&path, files, extensions);
+                } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if extensions.contains(&ext.to_lowercase().as_str()) {
+                        if let Some(file_info) = create_file_info(&path) {
+                            files.push(file_info);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    scan_dir(&folder_path, &mut files, &supported_extensions);
+    
+    // 按文件名排序
+    files.sort_by(|a, b| a.name.cmp(&b.name));
+    
+    Ok(files)
+}

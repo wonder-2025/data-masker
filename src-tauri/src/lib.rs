@@ -59,6 +59,7 @@ pub fn run() {
             commands::file::open_file_location,
             commands::file::open_output_directory,
             commands::file::clear_temp_files,
+            commands::file::scan_folder,
             
             // 脱敏处理
             commands::mask::detect_sensitive,

@@ -10,23 +10,18 @@
     
     <!-- 上传区域 -->
     <div class="upload-section">
-      <el-upload
-        ref="uploadRef"
-        class="upload-dragger"
-        drag
-        multiple
-        :auto-upload="false"
-        :show-file-list="false"
-        @change="handleFileChange"
-      >
-        <div class="upload-content">
-          <el-icon class="upload-icon" :size="64"><UploadFilled /></el-icon>
-          <div class="upload-text">
-            <p class="upload-title">拖拽文件到此处，或<em>点击上传</em></p>
-            <p class="upload-hint">支持 PDF、Word、Excel、TXT、CSV、JSON、XML 格式</p>
-          </div>
-        </div>
-      </el-upload>
+      <!-- Tauri 文件选择按钮 -->
+      <div class="tauri-upload-area">
+        <el-button type="primary" size="large" @click="selectFiles">
+          <el-icon><FolderOpened /></el-icon>
+          选择文件
+        </el-button>
+        <el-button size="large" @click="selectFolder">
+          <el-icon><Folder /></el-icon>
+          选择文件夹
+        </el-button>
+        <p class="upload-hint">支持 PDF、Word、Excel、TXT、CSV、JSON、XML 格式</p>
+      </div>
       
       <!-- 支持的格式图标 -->
       <div class="format-icons">
@@ -154,9 +149,6 @@ const filesStore = useFilesStore()
 const fileList = computed(() => filesStore.files)
 const totalSize = computed(() => filesStore.totalSize)
 
-// 上传组件引用
-const uploadRef = ref(null)
-
 // 预览相关
 const previewVisible = ref(false)
 const previewLoading = ref(false)
@@ -182,31 +174,64 @@ const estimateTime = computed(() => {
   return `约${minutes}分钟`
 })
 
-// 处理文件选择
-function handleFileChange(file) {
-  if (!file || !file.raw) return
-  
-  const rawFile = file.raw
-  const ext = getFileExtension(rawFile.name)
-  
-  // 检查文件格式
-  if (!isSupportedFormat(ext)) {
-    ElMessage.warning(getUnsupportedFormatTip(ext))
-    return
+// 使用 Tauri 命令选择文件
+async function selectFiles() {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const files = await invoke('select_files')
+    
+    if (files && files.length > 0) {
+      for (const file of files) {
+        addFileToStore(file)
+      }
+      ElMessage.success(`已添加 ${files.length} 个文件`)
+    }
+  } catch (error) {
+    console.error('选择文件失败:', error)
+    ElMessage.error('选择文件失败: ' + (error.message || error))
   }
+}
+
+// 使用 Tauri 命令选择文件夹
+async function selectFolder() {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const folderPath = await invoke('select_directory')
+    
+    if (folderPath) {
+      // 扫描文件夹中的支持文件
+      const files = await invoke('scan_folder', { path: folderPath })
+      if (files && files.length > 0) {
+        for (const file of files) {
+          addFileToStore(file)
+        }
+        ElMessage.success(`已添加 ${files.length} 个文件`)
+      } else {
+        ElMessage.info('文件夹中没有找到支持的文件')
+      }
+    }
+  } catch (error) {
+    console.error('选择文件夹失败:', error)
+    ElMessage.error('选择文件夹失败: ' + (error.message || error))
+  }
+}
+
+// 添加文件到 store
+function addFileToStore(file) {
+  const ext = getFileExtension(file.name)
   
-  // 检查文件大小（默认最大100MB）
+  // 检查文件大小
   const maxSize = 100 * 1024 * 1024
-  if (rawFile.size > maxSize) {
-    ElMessage.warning('文件大小超过100MB限制')
+  if (file.size > maxSize) {
+    ElMessage.warning(`${file.name} 超过100MB限制`)
     return
   }
   
   // 添加到文件列表
   filesStore.addFile({
-    name: rawFile.name,
-    path: rawFile.path || rawFile.name,
-    size: rawFile.size,
+    name: file.name,
+    path: file.path,
+    size: file.size,
     type: ext
   })
 }
@@ -350,48 +375,30 @@ function goNext() {
 .upload-section {
   margin-bottom: 32px;
   
-  .upload-dragger {
-    width: 100%;
-    
-    :deep(.el-upload-dragger) {
-      border: 2px dashed #dcdfe6;
-      border-radius: 12px;
-      background: #fafafa;
-      transition: all 0.3s;
-      
-      &:hover {
-        border-color: #409EFF;
-        background: #f0f7ff;
-      }
-    }
-  }
-  
-  .upload-content {
+  .tauri-upload-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
     padding: 48px;
-    text-align: center;
+    background: #fafafa;
+    border: 2px dashed #dcdfe6;
+    border-radius: 12px;
+    transition: all 0.3s;
     
-    .upload-icon {
-      color: #c0c4cc;
-      margin-bottom: 16px;
+    &:hover {
+      border-color: #409EFF;
+      background: #f0f7ff;
     }
     
-    .upload-text {
-      .upload-title {
-        font-size: 16px;
-        color: #606266;
-        margin: 0 0 8px;
-        
-        em {
-          color: #409EFF;
-          font-style: normal;
-        }
-      }
-      
-      .upload-hint {
-        font-size: 14px;
-        color: #909399;
-        margin: 0;
-      }
+    .el-button {
+      min-width: 150px;
+    }
+    
+    .upload-hint {
+      font-size: 14px;
+      color: #909399;
+      margin: 0;
     }
   }
   
