@@ -38,7 +38,10 @@ export const useSettingsStore = defineStore('settings', () => {
     // 错误报告
     errorReport: {
       enabled: true,
-      serverUrl: 'http://106.12.190.227:30051/api/data-masker/error-log'
+      serverUrl: 'http://106.12.190.227:30051/api/data-masker/logs',
+      collectErrors: true,
+      collectOperations: true,
+      collectAnalytics: true
     }
   })
 

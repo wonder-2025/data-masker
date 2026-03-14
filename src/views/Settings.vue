@@ -186,27 +186,27 @@
         </div>
       </el-tab-pane>
       
-      <!-- 错误报告 -->
-      <el-tab-pane label="错误报告" name="errorReport">
+      <!-- 日志收集 -->
+      <el-tab-pane label="日志收集" name="errorReport">
         <div class="settings-section">
-          <h3>错误日志提交</h3>
+          <h3>使用数据收集</h3>
           <el-alert type="info" :closable="false" style="margin-bottom: 20px;">
-            启用后，应用遇到错误时会自动将日志发送到服务器，帮助开发者快速定位和修复问题。
+            启用后，应用会收集使用数据（操作日志、错误日志等），帮助开发者了解用户需求并优化功能。
           </el-alert>
 
           <el-form label-width="140px">
-            <el-form-item label="启用错误日志">
-              <el-switch v-model="settingsStore.settingsData.errorReport.enabled" />
-              <div class="form-tip">启用后，遇到错误时自动发送日志</div>
+            <el-form-item label="启用日志收集">
+              <el-switch v-model="settingsStore.settingsData.errorReport.enabled" @change="handleLogCollectorChange" />
+              <div class="form-tip">启用后，自动收集使用数据用于优化</div>
             </el-form-item>
 
             <el-form-item label="服务器地址" v-if="settingsStore.settingsData.errorReport.enabled">
               <el-input
                 v-model="settingsStore.settingsData.errorReport.serverUrl"
-                placeholder="http://server:port/api/error-log"
+                placeholder="http://server:port/api/data-masker/logs"
                 style="width: 400px;"
               />
-              <div class="form-tip">接收错误日志的服务器地址</div>
+              <div class="form-tip">日志收集服务地址</div>
             </el-form-item>
 
             <el-form-item v-if="settingsStore.settingsData.errorReport.enabled">
@@ -231,10 +231,30 @@
 
           <el-divider />
 
+          <h3>收集的数据类型</h3>
+          <el-form label-width="140px">
+            <el-form-item label="错误日志">
+              <el-switch v-model="settingsStore.settingsData.errorReport.collectErrors" />
+              <div class="form-tip">JS异常、API失败等错误信息</div>
+            </el-form-item>
+            
+            <el-form-item label="操作日志">
+              <el-switch v-model="settingsStore.settingsData.errorReport.collectOperations" />
+              <div class="form-tip">文件选择、处理、导出等操作</div>
+            </el-form-item>
+            
+            <el-form-item label="行为分析">
+              <el-switch v-model="settingsStore.settingsData.errorReport.collectAnalytics" />
+              <div class="form-tip">页面访问、功能使用频率</div>
+            </el-form-item>
+          </el-form>
+
+          <el-divider />
+
           <h3>数据隐私</h3>
           <div class="privacy-note">
-            <el-icon :size="16" color="#E6A23C"><WarningFilled /></el-icon>
-            <span>发送的日志会自动脱敏文件路径等敏感信息</span>
+            <el-icon :size="16" color="#67C23A"><CircleCheckFilled /></el-icon>
+            <span>所有日志自动脱敏：文件路径、手机号、身份证等敏感信息会被替换</span>
           </div>
         </div>
       </el-tab-pane>
@@ -285,16 +305,27 @@
 import { ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { ElMessage } from 'element-plus'
+import { logCollector } from '@/utils/logCollector'
 
 const settingsStore = useSettingsStore()
 
 const activeTab = ref('general')
 const testingConnection = ref(false)
 const connectionStatus = ref('')
-
-// 测试连接
-// 测试结果
 const testResult = ref(null)
+
+// 日志收集开关变化
+function handleLogCollectorChange(enabled) {
+  logCollector.updateConfig({
+    enabled,
+    serverUrl: settingsStore.settingsData.errorReport.serverUrl
+  })
+  if (enabled) {
+    ElMessage.success('日志收集已启用')
+  } else {
+    ElMessage.info('日志收集已禁用')
+  }
+}
 
 // 测试连接
 async function testConnection() {

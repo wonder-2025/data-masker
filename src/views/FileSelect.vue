@@ -141,6 +141,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore } from '@/stores/files'
 import { ElMessage } from 'element-plus'
+import { logCollector } from '@/utils/logCollector'
 
 const router = useRouter()
 const filesStore = useFilesStore()
@@ -176,6 +177,7 @@ const estimateTime = computed(() => {
 
 // 使用 Tauri 命令选择文件
 async function selectFiles() {
+  const startTime = Date.now()
   try {
     const { invoke } = await import('@tauri-apps/api/core')
     const files = await invoke('select_files')
@@ -185,15 +187,27 @@ async function selectFiles() {
         addFileToStore(file)
       }
       ElMessage.success(`已添加 ${files.length} 个文件`)
+      
+      // 记录操作日志
+      logCollector.operation('SELECT_FILES', {
+        message: `选择了 ${files.length} 个文件`,
+        fileCount: files.length,
+        fileTypes: [...new Set(files.map(f => f.name.split('.').pop()))]
+      })
     }
   } catch (error) {
     console.error('选择文件失败:', error)
     ElMessage.error('选择文件失败: ' + (error.message || error))
+    logCollector.error('SELECT_FILES_ERROR', error.message || String(error))
   }
+  
+  // 记录耗时
+  logCollector.timing('select_files', Date.now() - startTime)
 }
 
 // 使用 Tauri 命令选择文件夹
 async function selectFolder() {
+  const startTime = Date.now()
   try {
     const { invoke } = await import('@tauri-apps/api/core')
     const folderPath = await invoke('select_directory')
@@ -206,6 +220,13 @@ async function selectFolder() {
           addFileToStore(file)
         }
         ElMessage.success(`已添加 ${files.length} 个文件`)
+        
+        // 记录操作日志
+        logCollector.operation('SELECT_FOLDER', {
+          message: `从文件夹添加了 ${files.length} 个文件`,
+          fileCount: files.length,
+          fileTypes: [...new Set(files.map(f => f.name.split('.').pop()))]
+        })
       } else {
         ElMessage.info('文件夹中没有找到支持的文件')
       }
@@ -213,7 +234,11 @@ async function selectFolder() {
   } catch (error) {
     console.error('选择文件夹失败:', error)
     ElMessage.error('选择文件夹失败: ' + (error.message || error))
+    logCollector.error('SELECT_FOLDER_ERROR', error.message || String(error))
   }
+  
+  // 记录耗时
+  logCollector.timing('select_folder', Date.now() - startTime)
 }
 
 // 添加文件到 store

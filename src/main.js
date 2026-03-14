@@ -11,7 +11,8 @@ import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import App from './App.vue'
 import router from './router'
 import './styles/main.css'
-import errorReporter from './utils/errorReporter'
+import { logCollector } from './utils/logCollector'
+import { useSettingsStore } from './stores/settings'
 
 const app = createApp(App)
 
@@ -30,9 +31,7 @@ app.use(ElementPlus, {
 // 配置 Vue 全局错误处理器
 app.config.errorHandler = (err, vm, info) => {
   console.error('Vue Error:', err)
-  errorReporter.reportError({
-    type: 'VueError',
-    message: err.message || String(err),
+  logCollector.error('VUE_ERROR', err.message || String(err), {
     stack: err.stack || '',
     info: info || ''
   })
@@ -40,5 +39,16 @@ app.config.errorHandler = (err, vm, info) => {
 
 app.mount('#app')
 
-// 初始化错误报告器
-errorReporter.init()
+// 初始化日志收集器（从设置中读取配置）
+const settingsStore = useSettingsStore()
+logCollector.init({
+  enabled: settingsStore.settingsData.errorReport?.enabled ?? false,
+  serverUrl: settingsStore.settingsData.errorReport?.serverUrl || '',
+  appName: 'data-masker',
+  version: '1.0.0'
+})
+
+// 路由变化时记录页面访问
+router.afterEach((to) => {
+  logCollector.pageView(to.name || to.path)
+})
