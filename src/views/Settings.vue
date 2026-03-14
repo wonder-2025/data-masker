@@ -15,14 +15,14 @@
           <h3>界面设置</h3>
           <el-form label-width="120px">
             <el-form-item label="语言">
-              <el-select v-model="settings.general.language" style="width: 200px;">
+              <el-select v-model="settingsStore.settingsData.general.language" style="width: 200px;">
                 <el-option label="简体中文" value="zh-CN" />
                 <el-option label="English" value="en-US" />
               </el-select>
             </el-form-item>
             
             <el-form-item label="主题">
-              <el-radio-group v-model="settings.general.theme">
+              <el-radio-group v-model="settingsStore.settingsData.general.theme">
                 <el-radio value="light">浅色</el-radio>
                 <el-radio value="dark">深色</el-radio>
                 <el-radio value="auto">跟随系统</el-radio>
@@ -35,7 +35,7 @@
           <h3>输出设置</h3>
           <el-form label-width="120px">
             <el-form-item label="默认输出目录">
-              <el-input v-model="settings.general.outputDir" style="width: 300px;">
+              <el-input v-model="settingsStore.settingsData.general.outputDir" style="width: 300px;">
                 <template #append>
                   <el-button @click="selectOutputDir">浏览</el-button>
                 </template>
@@ -44,7 +44,7 @@
             </el-form-item>
             
             <el-form-item label="自动打开输出">
-              <el-switch v-model="settings.general.autoOpenOutput" />
+              <el-switch v-model="settingsStore.settingsData.general.autoOpenOutput" />
               <div class="form-tip">处理完成后自动打开输出目录</div>
             </el-form-item>
           </el-form>
@@ -57,7 +57,7 @@
           <h3>默认脱敏策略</h3>
           <el-form label-width="140px">
             <el-form-item label="默认策略">
-              <el-select v-model="settings.masking.defaultStrategy" style="width: 200px;">
+              <el-select v-model="settingsStore.settingsData.masking.defaultStrategy" style="width: 200px;">
                 <el-option label="完全隐藏" value="full_mask" />
                 <el-option label="部分掩码" value="partial_mask" />
                 <el-option label="假数据替换" value="fake_data" />
@@ -66,16 +66,16 @@
               </el-select>
             </el-form-item>
             
-            <el-form-item label="保留前几位" v-if="settings.masking.defaultStrategy === 'partial_mask'">
-              <el-input-number v-model="settings.masking.keepStartDigits" :min="0" :max="20" />
+            <el-form-item label="保留前几位" v-if="settingsStore.settingsData.masking.defaultStrategy === 'partial_mask'">
+              <el-input-number v-model="settingsStore.settingsData.masking.keepStartDigits" :min="0" :max="20" />
             </el-form-item>
             
-            <el-form-item label="保留后几位" v-if="settings.masking.defaultStrategy === 'partial_mask'">
-              <el-input-number v-model="settings.masking.keepEndDigits" :min="0" :max="20" />
+            <el-form-item label="保留后几位" v-if="settingsStore.settingsData.masking.defaultStrategy === 'partial_mask'">
+              <el-input-number v-model="settingsStore.settingsData.masking.keepEndDigits" :min="0" :max="20" />
             </el-form-item>
             
             <el-form-item label="脱敏字符">
-              <el-input v-model="settings.masking.maskChar" style="width: 60px;" maxlength="1" />
+              <el-input v-model="settingsStore.settingsData.masking.maskChar" style="width: 60px;" maxlength="1" />
               <div class="form-tip">用于替换敏感信息的字符，默认为 *</div>
             </el-form-item>
           </el-form>
@@ -85,7 +85,7 @@
           <h3>假数据生成</h3>
           <el-form label-width="140px">
             <el-form-item label="数据语言">
-              <el-select v-model="settings.masking.fakeDataLocale" style="width: 200px;">
+              <el-select v-model="settingsStore.settingsData.masking.fakeDataLocale" style="width: 200px;">
                 <el-option label="中文" value="zh-CN" />
                 <el-option label="English" value="en-US" />
               </el-select>
@@ -101,13 +101,13 @@
           <h3>密码保护</h3>
           <el-form label-width="140px">
             <el-form-item label="启用密码保护">
-              <el-switch v-model="settings.security.passwordProtect" />
+              <el-switch v-model="settingsStore.settingsData.security.passwordProtect" />
               <div class="form-tip">启用后需要输入密码才能打开应用</div>
             </el-form-item>
             
-            <el-form-item label="设置密码" v-if="settings.security.passwordProtect">
+            <el-form-item label="设置密码" v-if="settingsStore.settingsData.security.passwordProtect">
               <el-input
-                v-model="settings.security.password"
+                v-model="settingsStore.settingsData.security.password"
                 type="password"
                 show-password
                 style="width: 200px;"
@@ -121,17 +121,17 @@
           <h3>临时文件管理</h3>
           <el-form label-width="140px">
             <el-form-item label="自动清理">
-              <el-switch v-model="settings.security.autoCleanTemp" />
+              <el-switch v-model="settingsStore.settingsData.security.autoCleanTemp" />
               <div class="form-tip">自动清理处理过程中产生的临时文件</div>
             </el-form-item>
             
-            <el-form-item label="清理时间" v-if="settings.security.autoCleanTemp">
-              <el-input-number v-model="settings.security.cleanAfter" :min="1" :max="1440" />
+            <el-form-item label="清理时间" v-if="settingsStore.settingsData.security.autoCleanTemp">
+              <el-input-number v-model="settingsStore.settingsData.security.cleanAfter" :min="1" :max="1440" />
               <span style="margin-left: 8px;">分钟后清理</span>
             </el-form-item>
             
             <el-form-item label="加密映射表">
-              <el-switch v-model="settings.security.encryptMapping" />
+              <el-switch v-model="settingsStore.settingsData.security.encryptMapping" />
               <div class="form-tip">使用AES-256加密存储可逆脱敏的映射表</div>
             </el-form-item>
           </el-form>
@@ -144,13 +144,13 @@
           <h3>性能设置</h3>
           <el-form label-width="140px">
             <el-form-item label="最大文件大小">
-              <el-input-number v-model="settings.advanced.maxFileSize" :min="1" :max="1000" />
+              <el-input-number v-model="settingsStore.settingsData.advanced.maxFileSize" :min="1" :max="1000" />
               <span style="margin-left: 8px;">MB</span>
               <div class="form-tip">单个文件的最大处理大小限制</div>
             </el-form-item>
             
             <el-form-item label="并发文件数">
-              <el-slider v-model="settings.advanced.concurrentFiles" :min="1" :max="10" show-input />
+              <el-slider v-model="settingsStore.settingsData.advanced.concurrentFiles" :min="1" :max="10" show-input />
               <div class="form-tip">同时处理的文件数量</div>
             </el-form-item>
           </el-form>
@@ -160,7 +160,7 @@
           <h3>日志设置</h3>
           <el-form label-width="140px">
             <el-form-item label="日志级别">
-              <el-select v-model="settings.advanced.logLevel" style="width: 200px;">
+              <el-select v-model="settingsStore.settingsData.advanced.logLevel" style="width: 200px;">
                 <el-option label="调试 (Debug)" value="debug" />
                 <el-option label="信息 (Info)" value="info" />
                 <el-option label="警告 (Warn)" value="warn" />
@@ -174,12 +174,12 @@
           <h3>实验性功能</h3>
           <el-form label-width="140px">
             <el-form-item label="启用OCR">
-              <el-switch v-model="settings.advanced.enableOCR" />
+              <el-switch v-model="settingsStore.settingsData.advanced.enableOCR" />
               <div class="form-tip">启用图片文字识别功能（需要额外依赖）</div>
             </el-form-item>
             
             <el-form-item label="启用NER">
-              <el-switch v-model="settings.advanced.enableNER" />
+              <el-switch v-model="settingsStore.settingsData.advanced.enableNER" />
               <div class="form-tip">启用命名实体识别，提高姓名、公司等识别准确率</div>
             </el-form-item>
           </el-form>
@@ -190,35 +190,27 @@
       <el-tab-pane label="错误报告" name="errorReport">
         <div class="settings-section">
           <h3>错误日志提交</h3>
-          <el-alert
-            type="info"
-            :closable="false"
-            style="margin-bottom: 20px;"
-          >
-            <template #title>
-              启用后，应用遇到错误时会自动将日志发送到服务器，帮助开发者快速定位和修复问题。
-            </template>
+          <el-alert type="info" :closable="false" style="margin-bottom: 20px;">
+            启用后，应用遇到错误时会自动将日志发送到服务器，帮助开发者快速定位和修复问题。
           </el-alert>
 
           <el-form label-width="140px">
             <el-form-item label="启用错误日志">
-              <el-switch v-model="settings.errorReport.enabled" />
+              <el-switch v-model="settingsStore.settingsData.errorReport.enabled" />
               <div class="form-tip">启用后，遇到错误时自动发送日志</div>
             </el-form-item>
 
-            <el-form-item label="日志服务器地址" v-if="settings.errorReport.enabled">
+            <el-form-item label="服务器地址" v-if="settingsStore.settingsData.errorReport.enabled">
               <el-input
-                v-model="settings.errorReport.serverUrl"
-                placeholder="http://your-server:port/api/error-log"
+                v-model="settingsStore.settingsData.errorReport.serverUrl"
+                placeholder="http://server:port/api/error-log"
                 style="width: 400px;"
               />
               <div class="form-tip">接收错误日志的服务器地址</div>
             </el-form-item>
 
-            <el-form-item v-if="settings.errorReport.enabled">
-              <el-button @click="testConnection" :loading="testingConnection">
-                测试连接
-              </el-button>
+            <el-form-item v-if="settingsStore.settingsData.errorReport.enabled">
+              <el-button @click="testConnection" :loading="testingConnection">测试连接</el-button>
               <span v-if="connectionStatus" :style="{ color: connectionStatus === '成功' ? '#67C23A' : '#F56C6C', marginLeft: '10px' }">
                 {{ connectionStatus }}
               </span>
@@ -228,22 +220,10 @@
           <el-divider />
 
           <h3>数据隐私</h3>
-          <el-form label-width="140px">
-            <el-form-item>
-              <div class="privacy-note">
-                <el-icon :size="16" color="#E6A23C"><WarningFilled /></el-icon>
-                <span>发送的日志会自动脱敏文件路径等敏感信息</span>
-              </div>
-              <div class="log-sample">
-                <p><strong>日志内容示例：</strong></p>
-                <pre>- 应用版本：1.0.0
-- 操作系统：Windows 11
-- 错误类型：FileProcessingError
-- 错误信息：无法读取文件（路径已脱敏）
-- 时间戳：2026-03-14T11:30:00</pre>
-              </div>
-            </el-form-item>
-          </el-form>
+          <div class="privacy-note">
+            <el-icon :size="16" color="#E6A23C"><WarningFilled /></el-icon>
+            <span>发送的日志会自动脱敏文件路径等敏感信息</span>
+          </div>
         </div>
       </el-tab-pane>
 
@@ -273,30 +253,6 @@
           
           <el-divider />
           
-          <div class="tech-stack">
-            <h3>技术栈</h3>
-            <div class="tech-icons">
-              <div class="tech-item">
-                <el-icon :size="32"><Monitor /></el-icon>
-                <span>Vue 3</span>
-              </div>
-              <div class="tech-item">
-                <el-icon :size="32"><Cpu /></el-icon>
-                <span>Tauri</span>
-              </div>
-              <div class="tech-item">
-                <el-icon :size="32"><SetUp /></el-icon>
-                <span>Rust</span>
-              </div>
-              <div class="tech-item">
-                <el-icon :size="32"><ElementPlus /></el-icon>
-                <span>Element Plus</span>
-              </div>
-            </div>
-          </div>
-          
-          <el-divider />
-          
           <div class="license">
             <p>本软件为开源项目，采用 MIT 许可证。</p>
             <p>所有数据处理均在本地完成，敏感数据不会上传到云端。</p>
@@ -314,21 +270,15 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { ElMessage } from 'element-plus'
 
 const settingsStore = useSettingsStore()
 
-// 当前标签页
 const activeTab = ref('general')
-
-// 测试连接状态
 const testingConnection = ref(false)
 const connectionStatus = ref('')
-
-// 设置数据
-const settings = computed(() => settingsStore.settings)
 
 // 测试连接
 async function testConnection() {
@@ -336,7 +286,7 @@ async function testConnection() {
   connectionStatus.value = ''
 
   try {
-    const response = await fetch(settings.value.errorReport.serverUrl, {
+    const response = await fetch(settingsStore.settingsData.errorReport.serverUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -370,7 +320,7 @@ async function selectOutputDir() {
     const { invoke } = await import('@tauri-apps/api')
     const selected = await invoke('select_directory')
     if (selected) {
-      settingsStore.updateSetting('general', 'outputDir', selected)
+      settingsStore.settingsData.general.outputDir = selected
     }
   } catch (error) {
     console.error('选择目录失败:', error)
@@ -388,11 +338,6 @@ function saveSettings() {
   settingsStore.saveSettings()
   ElMessage.success('设置已保存')
 }
-
-// 监听设置变化自动保存
-watch(settings, () => {
-  // 可以在这里添加实时保存逻辑
-}, { deep: true })
 </script>
 
 <style lang="scss" scoped>
@@ -401,49 +346,64 @@ watch(settings, () => {
   margin: 0 auto;
 }
 
+.page-header {
+  margin-bottom: 16px;
+  
+  .page-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+  }
+  
+  .page-desc {
+    font-size: 12px;
+    color: #909399;
+    margin: 4px 0 0;
+  }
+}
+
 .settings-tabs {
   background: #fff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   
   :deep(.el-tabs__content) {
-    padding-left: 24px;
+    padding-left: 16px;
   }
 }
 
 .settings-section {
   h3 {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     color: #303133;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
 }
 
 .form-tip {
-  font-size: 12px;
+  font-size: 11px;
   color: #909399;
   margin-top: 4px;
 }
 
 .about-section {
   text-align: center;
-  padding: 40px 0;
+  padding: 24px 0;
   
   .app-logo {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
   
   h2 {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
-    color: #303133;
     margin: 0 0 8px;
   }
   
   .version {
-    font-size: 14px;
+    font-size: 12px;
     color: #909399;
     margin: 0;
   }
@@ -461,35 +421,13 @@ watch(settings, () => {
       
       .name {
         font-weight: 500;
-        color: #303133;
-      }
-    }
-  }
-  
-  .tech-stack {
-    .tech-icons {
-      display: flex;
-      justify-content: center;
-      gap: 32px;
-      margin-top: 16px;
-      
-      .tech-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        
-        span {
-          font-size: 12px;
-          color: #606266;
-        }
       }
     }
   }
   
   .license {
     p {
-      font-size: 13px;
+      font-size: 12px;
       color: #909399;
       margin: 8px 0;
     }
@@ -499,9 +437,9 @@ watch(settings, () => {
 .action-bar {
   display: flex;
   justify-content: flex-end;
-  gap: 16px;
-  margin-top: 32px;
-  padding-top: 24px;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
   border-top: 1px solid #ebeef5;
 }
 
@@ -510,26 +448,6 @@ watch(settings, () => {
   align-items: center;
   gap: 8px;
   color: #E6A23C;
-  margin-bottom: 12px;
-}
-
-.log-sample {
-  background: #f5f7fa;
-  padding: 12px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-
-  p {
-    margin: 0 0 8px;
-    color: #606266;
-  }
-
-  pre {
-    margin: 0;
-    color: #909399;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 12px;
-    line-height: 1.6;
-  }
+  font-size: 12px;
 }
 </style>
