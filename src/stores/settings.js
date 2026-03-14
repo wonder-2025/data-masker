@@ -1,74 +1,132 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 export const useSettingsStore = defineStore('settings', () => {
-  // 文件保存路径
-  const savePath = ref('')
-  
-  // 脱敏级别：low, medium, high
-  const maskingLevel = ref('medium')
-  
-  // 默认脱敏规则
-  const defaultRules = ref([
-    { id: 'id_card', name: '身份证号', enabled: true },
-    { id: 'phone', name: '手机号', enabled: true },
-    { id: 'bank_card', name: '银行卡号', enabled: true },
-    { id: 'email', name: '邮箱', enabled: true },
-    { id: 'name', name: '姓名', enabled: true },
-    { id: 'address', name: '地址', enabled: true }
-  ])
-  
-  // 错误日志提交
-  const errorReport = ref({
-    enabled: true,
-    serverUrl: 'http://106.12.190.227:30051/api/data-masker/error-log'
+  // 完整的设置对象
+  const settingsData = ref({
+    // 通用设置
+    general: {
+      language: 'zh-CN',
+      theme: 'light',
+      outputDir: '',
+      autoOpenOutput: true
+    },
+    // 脱敏设置
+    masking: {
+      defaultStrategy: 'partial_mask',
+      keepStartDigits: 3,
+      keepEndDigits: 4,
+      maskChar: '*',
+      fakeDataLocale: 'zh-CN'
+    },
+    // 安全设置
+    security: {
+      passwordProtect: false,
+      password: '',
+      autoCleanTemp: true,
+      cleanAfter: 60,
+      encryptMapping: true
+    },
+    // 高级设置
+    advanced: {
+      maxFileSize: 100,
+      concurrentFiles: 3,
+      logLevel: 'info',
+      enableOCR: false,
+      enableNER: false
+    },
+    // 错误报告
+    errorReport: {
+      enabled: true,
+      serverUrl: 'http://106.12.190.227:30051/api/data-masker/error-log'
+    }
   })
-  
-  // 测试服务器连接
-  const testConnection = async () => {
-    try {
-      const response = await fetch(errorReport.value.serverUrl.replace('/api/error-log', '/api/ping'), {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        return { success: true, message: data.message || '连接成功' }
-      }
-      return { success: false, message: `HTTP ${response.status}` }
-    } catch (error) {
-      return { success: false, message: error.message }
+
+  // 计算属性
+  const settings = computed(() => settingsData.value)
+
+  // 更新设置
+  function updateSetting(category, key, value) {
+    if (settingsData.value[category]) {
+      settingsData.value[category][key] = value
     }
   }
-  
-  // 保存设置到本地存储
-  watch([savePath, maskingLevel, defaultRules, errorReport], () => {
-    localStorage.setItem('data-masker-settings', JSON.stringify({
-      savePath: savePath.value,
-      maskingLevel: maskingLevel.value,
-      defaultRules: defaultRules.value,
-      errorReport: errorReport.value
-    }))
-  }, { deep: true })
-  
-  // 从本地存储加载设置
-  const loadSettings = () => {
+
+  // 批量更新设置
+  function updateSettings(newSettings) {
+    Object.assign(settingsData.value, newSettings)
+  }
+
+  // 重置为默认值
+  function resetToDefault() {
+    settingsData.value = {
+      general: {
+        language: 'zh-CN',
+        theme: 'light',
+        outputDir: '',
+        autoOpenOutput: true
+      },
+      masking: {
+        defaultStrategy: 'partial_mask',
+        keepStartDigits: 3,
+        keepEndDigits: 4,
+        maskChar: '*',
+        fakeDataLocale: 'zh-CN'
+      },
+      security: {
+        passwordProtect: false,
+        password: '',
+        autoCleanTemp: true,
+        cleanAfter: 60,
+        encryptMapping: true
+      },
+      advanced: {
+        maxFileSize: 100,
+        concurrentFiles: 3,
+        logLevel: 'info',
+        enableOCR: false,
+        enableNER: false
+      },
+      errorReport: {
+        enabled: true,
+        serverUrl: 'http://106.12.190.227:30051/api/data-masker/error-log'
+      }
+    }
+  }
+
+  // 保存到本地存储
+  function saveSettings() {
+    localStorage.setItem('data-masker-settings', JSON.stringify(settingsData.value))
+  }
+
+  // 从本地存储加载
+  function loadSettings() {
     const saved = localStorage.getItem('data-masker-settings')
     if (saved) {
-      const settings = JSON.parse(saved)
-      savePath.value = settings.savePath || ''
-      maskingLevel.value = settings.maskingLevel || 'medium'
-      defaultRules.value = settings.defaultRules || defaultRules.value
-      errorReport.value = settings.errorReport || errorReport.value
+      try {
+        const parsed = JSON.parse(saved)
+        Object.assign(settingsData.value, parsed)
+      } catch (e) {
+        console.error('加载设置失败:', e)
+      }
     }
   }
-  
+
+  // 监听变化自动保存
+  watch(settingsData, () => {
+    localStorage.setItem('data-masker-settings', JSON.stringify(settingsData.value))
+  }, { deep: true })
+
+  // 初始化时加载
+  loadSettings()
+
   return {
-    savePath,
-    maskingLevel,
-    defaultRules,
-    errorReport,
-    testConnection,
+    settings,
+    settingsData,
+    updateSetting,
+    updateSettings,
+    resetToDefault,
+    saveSettings,
     loadSettings
   }
 })
