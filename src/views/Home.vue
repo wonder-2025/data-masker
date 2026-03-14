@@ -3,136 +3,128 @@
 
 <template>
   <div class="home-page">
-    <!-- 欢迎区域 -->
+    <!-- 欢迎区域 - 紧凑版 -->
     <div class="welcome-section">
-      <div class="welcome-content">
-        <h1 class="welcome-title">
-          <el-icon :size="48" color="#409EFF"><Shield /></el-icon>
-          Data Masker
-        </h1>
-        <p class="welcome-desc">
-          安全、高效的本地文件脱敏工具，敏感数据不上传云端
-        </p>
+      <div class="welcome-header">
+        <el-icon :size="40" color="#409EFF"><Shield /></el-icon>
+        <div class="welcome-text">
+          <h1 class="welcome-title">Data Masker</h1>
+          <p class="welcome-desc">本地文件脱敏工具，敏感数据不上传云端</p>
+        </div>
         <el-button type="primary" size="large" class="start-btn" @click="startMasking">
           <el-icon><Right /></el-icon>
           开始脱敏
         </el-button>
       </div>
-      
+
       <div class="feature-cards">
         <div class="feature-card">
-          <el-icon :size="32" color="#409EFF"><Lock /></el-icon>
-          <h3>本地处理</h3>
-          <p>所有文件在本地处理，数据不出本机</p>
+          <el-icon :size="28" color="#409EFF"><Lock /></el-icon>
+          <div class="feature-content">
+            <h3>本地处理</h3>
+            <p>数据不出本机</p>
+          </div>
         </div>
         <div class="feature-card">
-          <el-icon :size="32" color="#67C23A"><DocumentChecked /></el-icon>
-          <h3>智能识别</h3>
-          <p>内置18种敏感信息识别规则</p>
+          <el-icon :size="28" color="#67C23A"><DocumentChecked /></el-icon>
+          <div class="feature-content">
+            <h3>智能识别</h3>
+            <p>18种识别规则</p>
+          </div>
         </div>
         <div class="feature-card">
-          <el-icon :size="32" color="#E6A23C"><SetUp /></el-icon>
-          <h3>灵活配置</h3>
-          <p>支持自定义规则和多种脱敏策略</p>
+          <el-icon :size="28" color="#E6A23C"><SetUp /></el-icon>
+          <div class="feature-content">
+            <h3>灵活配置</h3>
+            <p>自定义规则</p>
+          </div>
         </div>
         <div class="feature-card" @click="goToIPMapping" style="cursor: pointer;">
-          <el-icon :size="32" color="#9C27B0"><Connection /></el-icon>
-          <h3>IP映射</h3>
-          <p>智能IP映射，保持网络拓扑关系</p>
+          <el-icon :size="28" color="#9C27B0"><Connection /></el-icon>
+          <div class="feature-content">
+            <h3>IP映射</h3>
+            <p>保持网络拓扑</p>
+          </div>
         </div>
       </div>
     </div>
-    
-    <!-- 统计概览 -->
+
+    <!-- 统计概览 - 紧凑版 -->
     <div class="stats-section">
-      <h2 class="section-title">规则统计</h2>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon blue">
-            <el-icon :size="24"><Collection /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ ruleStats.builtinTotal }}</div>
-            <div class="stat-label">内置规则</div>
-          </div>
+      <div class="stat-card">
+        <el-icon :size="20" color="#409EFF"><Collection /></el-icon>
+        <div class="stat-value">{{ ruleStats.builtinTotal }}</div>
+        <div class="stat-label">内置规则</div>
+      </div>
+      <div class="stat-card">
+        <el-icon :size="20" color="#67C23A"><CircleCheck /></el-icon>
+        <div class="stat-value">{{ ruleStats.builtinEnabled }}</div>
+        <div class="stat-label">已启用</div>
+      </div>
+      <div class="stat-card">
+        <el-icon :size="20" color="#E6A23C"><EditPen /></el-icon>
+        <div class="stat-value">{{ ruleStats.customTotal }}</div>
+        <div class="stat-label">自定义</div>
+      </div>
+      <div class="stat-card">
+        <el-icon :size="20" color="#9C27B0"><FolderOpened /></el-icon>
+        <div class="stat-value">{{ recentFiles.length }}</div>
+        <div class="stat-label">最近处理</div>
+      </div>
+    </div>
+
+    <!-- 使用指南 - 紧凑版 -->
+    <div class="guide-section">
+      <h3>使用指南</h3>
+      <div class="guide-steps">
+        <div class="guide-step">
+          <div class="step-num">1</div>
+          <div class="step-text">选择文件</div>
         </div>
-        
-        <div class="stat-card">
-          <div class="stat-icon green">
-            <el-icon :size="24"><CircleCheck /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ ruleStats.builtinEnabled }}</div>
-            <div class="stat-label">已启用规则</div>
-          </div>
+        <el-icon :size="20" color="#C0C4CC"><Right /></el-icon>
+        <div class="guide-step">
+          <div class="step-num">2</div>
+          <div class="step-text">配置规则</div>
         </div>
-        
-        <div class="stat-card">
-          <div class="stat-icon orange">
-            <el-icon :size="24"><EditPen /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ ruleStats.customTotal }}</div>
-            <div class="stat-label">自定义规则</div>
-          </div>
+        <el-icon :size="20" color="#C0C4CC"><Right /></el-icon>
+        <div class="guide-step">
+          <div class="step-num">3</div>
+          <div class="step-text">预览确认</div>
         </div>
-        
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #9C27B0 0%, #BA68C8 100%);">
-            <el-icon :size="24"><FolderOpened /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ recentFiles.length }}</div>
-            <div class="stat-label">最近处理</div>
-          </div>
+        <el-icon :size="20" color="#C0C4CC"><Right /></el-icon>
+        <div class="guide-step">
+          <div class="step-num">4</div>
+          <div class="step-text">导出结果</div>
         </div>
       </div>
     </div>
-    
-    <!-- 最近处理的文件 -->
+
+    <!-- 最近处理的文件 - 紧凑版 -->
     <div class="recent-section" v-if="recentFiles.length > 0">
       <div class="section-header">
-        <h2 class="section-title">最近处理</h2>
-        <el-button text type="primary" @click="clearRecent">清空记录</el-button>
+        <h3>最近处理</h3>
+        <el-button text type="primary" size="small" @click="clearRecent">清空</el-button>
       </div>
-      <el-table :data="recentFiles" style="width: 100%">
-        <el-table-column prop="name" label="文件名" min-width="200">
-          <template #default="{ row }">
-            <div class="file-name">
-              <el-icon><Document /></el-icon>
-              <span>{{ row.name }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="type" label="类型" width="100">
-          <template #default="{ row }">
-            <el-tag size="small">{{ getFileTypeLabel(row.type) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="processedAt" label="处理时间" width="180">
-          <template #default="{ row }">
-            {{ formatDate(row.processedAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" align="center">
-          <template #default="{ row }">
-            <el-button size="small" text type="primary" @click="openFile(row)">
-              打开目录
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="recent-list">
+        <div v-for="file in recentFiles.slice(0, 5)" :key="file.path" class="recent-item">
+          <el-icon :size="16"><Document /></el-icon>
+          <span class="file-name">{{ file.name }}</span>
+          <el-tag size="small" type="info">{{ getFileTypeLabel(file.type) }}</el-tag>
+          <span class="file-time">{{ formatDate(file.processedAt) }}</span>
+        </div>
+      </div>
     </div>
-    
-    <!-- 使用指南 -->
-    <div class="guide-section">
-      <h2 class="section-title">使用指南</h2>
-      <el-steps :active="0" align-center>
-        <el-step title="选择文件" description="支持PDF、Word、Excel、TXT等多种格式" />
-        <el-step title="配置规则" description="选择需要脱敏的敏感信息类型" />
-        <el-step title="预览确认" description="查看脱敏效果并确认" />
-        <el-step title="导出结果" description="下载脱敏后的文件" />
-      </el-steps>
+
+    <!-- 支持格式提示 -->
+    <div class="format-tips">
+      <el-alert type="info" :closable="false">
+        <template #title>
+          支持：PDF、Word (.docx)、Excel (.xlsx/.xls)、PPT (.pptx)、TXT、CSV、JSON、PNG/JPG 图片
+        </template>
+        <template #default>
+          注意：旧版 Office 格式 (.doc/.ppt) 暂不支持，请转换为新版格式
+        </template>
+      </el-alert>
     </div>
   </div>
 </template>
@@ -184,7 +176,6 @@ function formatDate(dateStr) {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
   return date.toLocaleString('zh-CN', {
-    year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -194,7 +185,6 @@ function formatDate(dateStr) {
 
 // 打开文件目录
 async function openFile(file) {
-  // 调用 Tauri 命令打开文件所在目录
   try {
     const { invoke } = await import('@tauri-apps/api')
     await invoke('open_file_location', { path: file.path })
@@ -208,135 +198,208 @@ async function openFile(file) {
 .home-page {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 16px;
 }
 
-// 欢迎区域
+// 欢迎区域 - 紧凑版
 .welcome-section {
-  text-align: center;
-  padding: 40px 0;
-  
-  .welcome-content {
-    .welcome-title {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      font-size: 36px;
-      font-weight: 700;
-      color: #303133;
-      margin-bottom: 16px;
-    }
-    
-    .welcome-desc {
-      font-size: 16px;
-      color: #606266;
-      margin-bottom: 32px;
-    }
-    
-    .start-btn {
-      padding: 16px 48px;
-      font-size: 16px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #409EFF 0%, #36D1DC 100%);
-      border: none;
-      
-      &:hover {
-        opacity: 0.9;
-        transform: translateY(-2px);
-      }
-    }
-  }
-  
-  .feature-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-    margin-top: 48px;
-    
-    .feature-card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 32px;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-      transition: transform 0.2s, box-shadow 0.2s;
-      
-      &:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      }
-      
-      h3 {
-        margin: 16px 0 8px;
-        font-size: 18px;
+  .welcome-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+
+    .welcome-text {
+      flex: 1;
+
+      .welcome-title {
+        font-size: 24px;
+        font-weight: 700;
         color: #303133;
-      }
-      
-      p {
-        font-size: 14px;
-        color: #909399;
         margin: 0;
       }
+
+      .welcome-desc {
+        font-size: 14px;
+        color: #909399;
+        margin: 4px 0 0;
+      }
+    }
+
+    .start-btn {
+      padding: 12px 32px;
+    }
+  }
+
+  .feature-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+
+    .feature-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      .feature-content {
+        h3 {
+          font-size: 14px;
+          font-weight: 600;
+          color: #303133;
+          margin: 0 0 2px;
+        }
+
+        p {
+          font-size: 12px;
+          color: #909399;
+          margin: 0;
+        }
+      }
     }
   }
 }
 
-// 统计区域
+// 统计区域 - 紧凑版
 .stats-section {
-  margin-top: 48px;
-  
-  .section-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #303133;
-    margin-bottom: 20px;
-  }
-  
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+
+  .stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #303133;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #909399;
+    }
   }
 }
 
-// 最近处理
+// 使用指南 - 紧凑版
+.guide-section {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+
+  h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #303133;
+    margin: 0 0 12px;
+  }
+
+  .guide-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+
+    .guide-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .step-num {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #409EFF 0%, #36D1DC 100%);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .step-text {
+        font-size: 13px;
+        color: #606266;
+      }
+    }
+  }
+}
+
+// 最近处理 - 紧凑版
 .recent-section {
-  margin-top: 32px;
-  
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+
   .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
+
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #303133;
+      margin: 0;
+    }
   }
-  
-  .section-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #303133;
-  }
-  
-  .file-name {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+
+  .recent-list {
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .file-name {
+        flex: 1;
+        font-size: 13px;
+        color: #303133;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .file-time {
+        font-size: 12px;
+        color: #909399;
+      }
+    }
   }
 }
 
-// 使用指南
-.guide-section {
-  margin-top: 48px;
-  padding: 32px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  
-  .section-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #303133;
-    margin-bottom: 32px;
-    text-align: center;
-  }
+// 格式提示
+.format-tips {
+  margin-top: 20px;
 }
 
 // 响应式布局
@@ -344,19 +407,34 @@ async function openFile(file) {
   .feature-cards {
     grid-template-columns: repeat(2, 1fr) !important;
   }
-  
-  .stats-grid {
+
+  .stats-section {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
 
 @media (max-width: 576px) {
+  .welcome-header {
+    flex-direction: column;
+    text-align: center;
+
+    .welcome-text {
+      .welcome-title {
+        font-size: 20px;
+      }
+    }
+  }
+
   .feature-cards {
     grid-template-columns: 1fr !important;
   }
-  
-  .stats-grid {
-    grid-template-columns: 1fr !important;
+
+  .stats-section {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .guide-steps {
+    flex-wrap: wrap;
   }
 }
 </style>

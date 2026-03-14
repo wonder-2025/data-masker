@@ -191,7 +191,7 @@ function handleFileChange(file) {
   
   // 检查文件格式
   if (!isSupportedFormat(ext)) {
-    ElMessage.warning(`不支持的文件格式: ${ext}`)
+    ElMessage.warning(getUnsupportedFormatTip(ext))
     return
   }
   
@@ -221,6 +221,17 @@ function getFileExtension(filename) {
 function isSupportedFormat(ext) {
   const supported = ['pdf', 'docx', 'xlsx', 'xls', 'txt', 'md', 'csv', 'json', 'xml', 'pptx']
   return supported.includes(ext)
+}
+
+// 获取不支持的格式的提示信息
+function getUnsupportedFormatTip(ext) {
+  const tips = {
+    'doc': '旧版 Word 文档 (.doc) 暂不支持，请转换为 .docx 格式后再上传',
+    'ppt': '旧版 PPT 文档 (.ppt) 暂不支持，请转换为 .pptx 格式后再上传',
+    'docm': '带宏的 Word 文档 (.docm) 暂不支持',
+    'xlsm': '带宏的 Excel 文档 (.xlsm) 暂不支持'
+  }
+  return tips[ext] || `不支持的文件格式: .${ext}`
 }
 
 // 获取文件图标
