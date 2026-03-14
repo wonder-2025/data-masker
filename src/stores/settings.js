@@ -21,7 +21,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // 错误日志提交
   const errorReport = ref({
     enabled: true,
-    serverUrl: 'http://106.12.190.227:30051/api/error-log'
+    serverUrl: 'http://106.12.190.227:30051/api/data-masker/error-log'
   })
   
   // 测试服务器连接
