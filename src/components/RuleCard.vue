@@ -153,10 +153,15 @@ function handleConfigChange() {
       display: flex;
       align-items: center;
       gap: 12px;
+      flex: 1;
+      min-width: 0;
       
       .rule-name {
         font-weight: 500;
         color: #303133;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
   }
@@ -165,6 +170,8 @@ function handleConfigChange() {
     font-size: 12px;
     color: #909399;
     margin-bottom: 12px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   
   .rule-strategy {
@@ -178,17 +185,24 @@ function handleConfigChange() {
     .strategy-label {
       font-size: 13px;
       color: #606266;
+      flex-shrink: 0;
     }
     
     .mask-config {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       font-size: 13px;
       color: #606266;
       
       span {
         white-space: nowrap;
+        flex-shrink: 0;
+      }
+      
+      .el-input-number {
+        flex-shrink: 0;
       }
     }
   }

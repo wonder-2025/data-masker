@@ -20,14 +20,6 @@
                 <el-option label="English" value="en-US" />
               </el-select>
             </el-form-item>
-            
-            <el-form-item label="主题">
-              <el-radio-group v-model="settingsStore.settingsData.general.theme">
-                <el-radio value="light">浅色</el-radio>
-                <el-radio value="dark">深色</el-radio>
-                <el-radio value="auto">跟随系统</el-radio>
-              </el-radio-group>
-            </el-form-item>
           </el-form>
           
           <el-divider />
@@ -156,7 +148,7 @@
           </el-form>
           
           <el-divider />
-          
+
           <h3>日志设置</h3>
           <el-form label-width="140px">
             <el-form-item label="日志级别">
@@ -166,21 +158,6 @@
                 <el-option label="警告 (Warn)" value="warn" />
                 <el-option label="错误 (Error)" value="error" />
               </el-select>
-            </el-form-item>
-          </el-form>
-          
-          <el-divider />
-          
-          <h3>实验性功能</h3>
-          <el-form label-width="140px">
-            <el-form-item label="启用OCR">
-              <el-switch v-model="settingsStore.settingsData.advanced.enableOCR" />
-              <div class="form-tip">启用图片文字识别功能（需要额外依赖）</div>
-            </el-form-item>
-            
-            <el-form-item label="启用NER">
-              <el-switch v-model="settingsStore.settingsData.advanced.enableNER" />
-              <div class="form-tip">启用命名实体识别，提高姓名、公司等识别准确率</div>
             </el-form-item>
           </el-form>
         </div>

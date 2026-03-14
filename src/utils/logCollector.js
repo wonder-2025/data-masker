@@ -18,10 +18,13 @@ class LogCollector {
    * 初始化日志收集器
    */
   init(options = {}) {
+    console.log('[LogCollector] init called with options:', options)
     this.enabled = options.enabled ?? false
     this.serverUrl = options.serverUrl || ''
     this.appName = options.appName || 'data-masker'
     this.version = options.version || '1.0.0'
+    
+    console.log('[LogCollector] 初始化完成:', { enabled: this.enabled, serverUrl: this.serverUrl })
     
     // 定期刷新队列
     if (this.enabled) {
@@ -34,8 +37,16 @@ class LogCollector {
    * 更新配置
    */
   updateConfig(options = {}) {
-    if (options.enabled !== undefined) this.enabled = options.enabled
+    console.log('[LogCollector] updateConfig called with options:', options)
+    if (options.enabled !== undefined) {
+      this.enabled = options.enabled
+      if (this.enabled && !this.flushInterval) {
+        this.flushInterval = setInterval(() => this.flush(), 30000)
+        this._setupErrorHandlers()
+      }
+    }
     if (options.serverUrl !== undefined) this.serverUrl = options.serverUrl
+    console.log('[LogCollector] 配置更新完成:', { enabled: this.enabled, serverUrl: this.serverUrl })
   }
 
   /**
@@ -44,6 +55,7 @@ class LogCollector {
   _setupErrorHandlers() {
     // JS 错误
     window.addEventListener('error', (event) => {
+      console.log('[LogCollector] 捕获JS错误:', event.message)
       this.error('JS_ERROR', event.message, {
         filename: event.filename,
         lineno: event.lineno,
@@ -54,6 +66,7 @@ class LogCollector {
 
     // Promise 拒绝
     window.addEventListener('unhandledrejection', (event) => {
+      console.log('[LogCollector] 捕获Promise拒绝:', event.reason)
       this.error('PROMISE_REJECTION', event.reason?.message || String(event.reason), {
         stack: event.reason?.stack
       })
@@ -125,7 +138,15 @@ class LogCollector {
    * 内部日志方法
    */
   async _log(logType, event, message, data = {}) {
-    if (!this.enabled || !this.serverUrl) {
+    console.log('[LogCollector] _log called:', { enabled: this.enabled, serverUrl: this.serverUrl, logType, event })
+    
+    if (!this.enabled) {
+      console.log('[LogCollector] 日志收集已禁用，跳过')
+      return
+    }
+    
+    if (!this.serverUrl) {
+      console.log('[LogCollector] 服务器地址为空，跳过')
       return
     }
 
@@ -141,6 +162,7 @@ class LogCollector {
 
     // 加入队列
     this.queue.push(logData)
+    console.log('[LogCollector] 日志加入队列，当前队列长度:', this.queue.length)
 
     // 队列满了或者错误立即发送
     if (this.queue.length >= this.maxQueueSize || logType === 'error') {
@@ -152,7 +174,20 @@ class LogCollector {
    * 刷新队列，发送所有日志
    */
   async flush() {
-    if (!this.enabled || !this.serverUrl || this.queue.length === 0) {
+    console.log('[LogCollector] flush called, enabled:', this.enabled, 'serverUrl:', this.serverUrl, 'queue length:', this.queue.length)
+    
+    if (!this.enabled) {
+      console.log('[LogCollector] flush: 日志收集已禁用')
+      return
+    }
+    
+    if (!this.serverUrl) {
+      console.log('[LogCollector] flush: 服务器地址为空')
+      return
+    }
+    
+    if (this.queue.length === 0) {
+      console.log('[LogCollector] flush: 队列为空')
       return
     }
 
@@ -160,9 +195,11 @@ class LogCollector {
     this.queue = []
 
     try {
+      console.log('[LogCollector] 开始发送日志，数量:', logs.length)
       // 逐条发送
       for (const logData of logs) {
-        await fetch(this.serverUrl, {
+        console.log('[LogCollector] 发送日志:', logData.event)
+        const response = await fetch(this.serverUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -170,9 +207,11 @@ class LogCollector {
             ...logData
           })
         })
+        console.log('[LogCollector] 日志发送响应:', response.status, response.ok)
       }
+      console.log('[LogCollector] 所有日志发送完成')
     } catch (error) {
-      console.error('发送日志失败:', error)
+      console.error('[LogCollector] 发送日志失败:', error)
       // 发送失败，重新加入队列
       this.queue = [...logs, ...this.queue]
     }

@@ -90,12 +90,18 @@
         </el-table>
       </div>
       
-      <!-- 空状态 -->
-      <el-empty v-if="!previewLoading && sensitiveInfo.length === 0" description="未发现敏感信息">
-        <template #image>
-          <el-icon :size="64" color="#67C23A"><CircleCheckFilled /></el-icon>
-        </template>
-      </el-empty>
+      <!-- 空状态 - 仅在没有敏感信息且不在加载时显示 -->
+      <div class="empty-state" v-if="!previewLoading && sensitiveInfo.length === 0 && originalContent">
+        <el-empty description="未发现敏感信息">
+          <template #image>
+            <el-icon :size="64" color="#67C23A"><CircleCheckFilled /></el-icon>
+          </template>
+          <template #description>
+            <p>该文件中未检测到敏感信息</p>
+            <p class="empty-tip">您可以继续处理或返回修改规则配置</p>
+          </template>
+        </el-empty>
+      </div>
     </div>
     
     <!-- 统计面板 -->
@@ -115,7 +121,7 @@
         <el-icon class="el-icon--left"><ArrowLeft /></el-icon>
         上一步
       </el-button>
-      <el-button type="primary" @click="startProcessing" :disabled="sensitiveInfo.length === 0">
+      <el-button type="primary" @click="startProcessing">
         <el-icon class="el-icon--right"><VideoPlay /></el-icon>
         开始脱敏
       </el-button>
@@ -221,18 +227,25 @@ async function refreshPreview() {
       rules: rulesStore.enabledRules
     })
     
-    originalContent.value = result.original
-    maskedContent.value = result.masked
-    sensitiveInfo.value = result.sensitiveInfo.map((info, index) => ({
-      ...info,
-      id: index
-    }))
+    // 安全地处理返回结果
+    originalContent.value = result?.original || ''
+    maskedContent.value = result?.masked || ''
+    sensitiveInfo.value = Array.isArray(result?.sensitiveInfo) 
+      ? result.sensitiveInfo.map((info, index) => ({
+          ...info,
+          id: index
+        }))
+      : []
     
     // 保存预览结果
     filesStore.setPreviewContent(result)
   } catch (error) {
     console.error('生成预览失败:', error)
     ElMessage.error('生成预览失败: ' + (error.message || error))
+    // 设置默认值
+    originalContent.value = ''
+    maskedContent.value = ''
+    sensitiveInfo.value = []
   } finally {
     previewLoading.value = false
   }
@@ -240,12 +253,20 @@ async function refreshPreview() {
 
 // 高亮敏感信息
 function highlightSensitive(content, info) {
+  if (!content) return ''
+  if (!info || info.length === 0) return escapeHtml(content)
+  
   let html = escapeHtml(content)
   
   // 从后往前替换，避免位置偏移
   const sortedInfo = [...info].sort((a, b) => b.start - a.start)
   
   sortedInfo.forEach(item => {
+    // 边界检查
+    if (item.start < 0 || item.end > html.length || item.start >= item.end) {
+      return
+    }
+    
     const before = html.substring(0, item.start)
     const text = html.substring(item.start, item.end)
     const after = html.substring(item.end)
@@ -314,10 +335,8 @@ function goBack() {
 
 // 开始处理
 function startProcessing() {
-  if (sensitiveInfo.value.length === 0) {
-    ElMessage.warning('没有需要脱敏的内容')
-    return
-  }
+  // 即使没有检测到敏感信息，也允许继续处理
+  // 用户可能希望确认原始文件
   
   // 保存预览结果到 result store
   resultStore.clearResults()
@@ -475,5 +494,16 @@ function startProcessing() {
   margin-top: 32px;
   padding-top: 24px;
   border-top: 1px solid #ebeef5;
+}
+
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  
+  .empty-tip {
+    font-size: 13px;
+    color: #909399;
+    margin-top: 8px;
+  }
 }
 </style>

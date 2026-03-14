@@ -209,27 +209,33 @@ function formatDate(dateStr) {
 // 顶部欢迎区
 .header-section {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  padding: 32px 0;
   
   .header-left {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 12px;
+    width: 100%;
   }
   
   .header-title {
-    font-size: 20px;
+    font-size: 40px;
     font-weight: 600;
     margin: 0;
     color: #303133;
+    text-align: center;
   }
   
   .header-desc {
-    font-size: 12px;
+    font-size: 24px;
     color: #909399;
-    margin: 2px 0 0;
+    margin: 8px 0 0;
+    text-align: center;
   }
 }
 
@@ -237,22 +243,22 @@ function formatDate(dateStr) {
 .stats-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 24px;
   
   .stat-card {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     background: #fff;
-    border-radius: 8px;
-    padding: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     
     .stat-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -264,13 +270,13 @@ function formatDate(dateStr) {
     }
     
     .stat-value {
-      font-size: 18px;
+      font-size: 28px;
       font-weight: 600;
       color: #303133;
     }
     
     .stat-label {
-      font-size: 11px;
+      font-size: 14px;
       color: #909399;
     }
   }
@@ -280,29 +286,30 @@ function formatDate(dateStr) {
 .feature-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 24px;
   
   .feature-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     background: #fff;
-    border-radius: 8px;
-    padding: 16px 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 24px 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     cursor: pointer;
     transition: all 0.2s;
     
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
     }
     
     span {
-      font-size: 12px;
+      font-size: 16px;
       color: #606266;
+      font-weight: 500;
     }
   }
 }
@@ -312,10 +319,10 @@ function formatDate(dateStr) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
   
   .section-title {
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 600;
     color: #303133;
   }
@@ -324,29 +331,29 @@ function formatDate(dateStr) {
 // 使用指南
 .guide-section {
   background: #fff;
-  border-radius: 8px;
-  padding: 14px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   
   .guide-steps {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
   }
   
   .step-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     
     .step-num {
-      width: 20px;
-      height: 20px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       background: linear-gradient(135deg, #409EFF, #36D1DC);
       color: #fff;
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 600;
       display: flex;
       align-items: center;
@@ -354,7 +361,7 @@ function formatDate(dateStr) {
     }
     
     .step-text {
-      font-size: 12px;
+      font-size: 15px;
       color: #606266;
     }
   }
@@ -363,31 +370,31 @@ function formatDate(dateStr) {
 // 支持格式
 .format-section {
   background: #fff;
-  border-radius: 8px;
-  padding: 14px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   
   .format-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
   }
 }
 
 // 最近处理
 .recent-section {
   background: #fff;
-  border-radius: 8px;
-  padding: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   
   .recent-list {
     .recent-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 0;
+      gap: 12px;
+      padding: 12px 0;
       border-bottom: 1px solid #f0f0f0;
       
       &:last-child {
@@ -397,7 +404,7 @@ function formatDate(dateStr) {
       
       .file-name {
         flex: 1;
-        font-size: 12px;
+        font-size: 14px;
         color: #303133;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -405,7 +412,7 @@ function formatDate(dateStr) {
       }
       
       .file-time {
-        font-size: 11px;
+        font-size: 13px;
         color: #909399;
         white-space: nowrap;
       }
@@ -413,10 +420,10 @@ function formatDate(dateStr) {
   }
   
   .empty-hint {
-    font-size: 12px;
+    font-size: 14px;
     color: #909399;
     text-align: center;
-    padding: 20px 0;
+    padding: 24px 0;
   }
 }
 </style>

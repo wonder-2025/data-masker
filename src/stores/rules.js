@@ -6,6 +6,7 @@ import { ref, computed, watch } from 'vue'
 
 // localStorage 键名
 const CUSTOM_RULES_STORAGE_KEY = 'data-masker-custom-rules'
+const BUILTIN_RULES_CONFIG_KEY = 'data-masker-builtin-rules-config'
 
 /**
  * 从 localStorage 加载自定义规则
@@ -30,6 +31,32 @@ function saveCustomRulesToStorage(rules) {
     localStorage.setItem(CUSTOM_RULES_STORAGE_KEY, JSON.stringify(rules))
   } catch (e) {
     console.error('保存自定义规则失败:', e)
+  }
+}
+
+/**
+ * 从 localStorage 加载内置规则配置
+ */
+function loadBuiltinRulesConfigFromStorage() {
+  try {
+    const stored = localStorage.getItem(BUILTIN_RULES_CONFIG_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (e) {
+    console.error('加载内置规则配置失败:', e)
+  }
+  return {}
+}
+
+/**
+ * 保存内置规则配置到 localStorage
+ */
+function saveBuiltinRulesConfigToStorage(config) {
+  try {
+    localStorage.setItem(BUILTIN_RULES_CONFIG_KEY, JSON.stringify(config))
+  } catch (e) {
+    console.error('保存内置规则配置失败:', e)
   }
 }
 
@@ -233,8 +260,20 @@ const builtinRules = [
  * 管理内置规则和自定义规则
  */
 export const useRulesStore = defineStore('rules', () => {
-  // 内置规则列表
-  const builtinRulesList = ref([...builtinRules])
+  // 内置规则列表 - 从 localStorage 加载配置
+  const savedBuiltinConfig = loadBuiltinRulesConfigFromStorage()
+  const builtinRulesList = ref(builtinRules.map(rule => {
+    const savedConfig = savedBuiltinConfig[rule.id]
+    if (savedConfig) {
+      return {
+        ...rule,
+        enabled: savedConfig.enabled ?? rule.enabled,
+        strategy: savedConfig.strategy ?? rule.strategy,
+        strategyConfig: savedConfig.strategyConfig ?? rule.strategyConfig
+      }
+    }
+    return rule
+  }))
   
   // 自定义规则列表 - 从 localStorage 初始化
   const customRules = ref(loadCustomRulesFromStorage())
@@ -247,6 +286,23 @@ export const useRulesStore = defineStore('rules', () => {
     customRules,
     (newRules) => {
       saveCustomRulesToStorage(newRules)
+    },
+    { deep: true }
+  )
+  
+  // 监听 builtinRulesList 变化，自动保存配置到 localStorage
+  watch(
+    builtinRulesList,
+    (newRules) => {
+      const config = {}
+      newRules.forEach(rule => {
+        config[rule.id] = {
+          enabled: rule.enabled,
+          strategy: rule.strategy,
+          strategyConfig: rule.strategyConfig
+        }
+      })
+      saveBuiltinRulesConfigToStorage(config)
     },
     { deep: true }
   )

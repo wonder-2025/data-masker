@@ -40,7 +40,6 @@ export const useSettingsStore = defineStore('settings', () => {
     // 通用设置
     general: {
       language: 'zh-CN',
-      theme: 'light',
       outputDir: '',
       autoOpenOutput: true
     },
@@ -68,7 +67,7 @@ export const useSettingsStore = defineStore('settings', () => {
       enableOCR: false,
       enableNER: false
     },
-    // 错误报告（移除硬编码服务器地址）
+    // 错误报告
     errorReport: {
       enabled: false,
       serverUrl: '', // 用户自定义服务器地址
@@ -98,7 +97,6 @@ export const useSettingsStore = defineStore('settings', () => {
     settingsData.value = {
       general: {
         language: 'zh-CN',
-        theme: 'light',
         outputDir: '',
         autoOpenOutput: true
       },
