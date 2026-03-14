@@ -420,3 +420,35 @@ function formatDate(dateStr) {
   }
 }
 </style>
+
+<style lang="scss">
+/* 暗色模式 */
+html.dark {
+  .home-page {
+    .stats-section .stat-card,
+    .feature-section .feature-card,
+    .guide-section,
+    .format-section,
+    .recent-section {
+      background: #1f1f1f;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stat-value {
+      color: #e5eaf3;
+    }
+    
+    .section-title {
+      color: #e5eaf3;
+    }
+    
+    .step-text {
+      color: #a3a6ad;
+    }
+    
+    .recent-item .file-name {
+      color: #e5eaf3;
+    }
+  }
+}
+</style>

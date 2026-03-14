@@ -80,11 +80,11 @@ const activeMenu = computed(() => route.path)
 <style lang="scss" scoped>
 .app-container {
   height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-color, #f5f7fa);
 }
 
 .app-aside {
-  background: #1a1a2e;
+  background: var(--aside-bg, #1a1a2e);
   display: flex;
   flex-direction: column;
   
@@ -94,7 +94,7 @@ const activeMenu = computed(() => route.path)
     align-items: center;
     justify-content: center;
     gap: 12px;
-    border-bottom: 1px solid #2a2a3e;
+    border-bottom: 1px solid var(--aside-border, #2a2a3e);
     
     .logo-text {
       font-size: 20px;
@@ -115,7 +115,7 @@ const activeMenu = computed(() => route.path)
       border-radius: 8px;
       
       &:hover {
-        background: #2a2a3e !important;
+        background: var(--aside-hover, #2a2a3e) !important;
       }
       
       &.is-active {
@@ -132,13 +132,14 @@ const activeMenu = computed(() => route.path)
     justify-content: center;
     color: #666;
     font-size: 12px;
-    border-top: 1px solid #2a2a3e;
+    border-top: 1px solid var(--aside-border, #2a2a3e);
   }
 }
 
 .app-main {
   padding: 24px;
   overflow-y: auto;
+  background: var(--bg-color, #f5f7fa);
 }
 
 // 页面切换动画
@@ -150,5 +151,40 @@ const activeMenu = computed(() => route.path)
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+</style>
+
+<style lang="scss">
+/* 暗色模式全局样式 */
+html.dark {
+  --bg-color: #141414;
+  --aside-bg: #1a1a2e;
+  --aside-border: #2a2a3e;
+  --aside-hover: #2a2a3e;
+  
+  .app-container {
+    background: var(--bg-color);
+  }
+  
+  .app-main {
+    background: var(--bg-color);
+  }
+  
+  .page-card {
+    background: #1f1f1f;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .stat-card {
+    background: #1f1f1f;
+  }
+  
+  .page-header .page-title {
+    color: #e5eaf3;
+  }
+  
+  .page-header .page-desc {
+    color: #a3a6ad;
+  }
 }
 </style>
