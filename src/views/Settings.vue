@@ -215,6 +215,18 @@
                 {{ connectionStatus }}
               </span>
             </el-form-item>
+            
+            <!-- 测试结果详情 -->
+            <el-form-item v-if="testResult" label="测试结果">
+              <el-card class="test-result-card" shadow="never">
+                <div class="result-header">
+                  <el-tag :type="testResult.ok ? 'success' : 'danger'" size="small">
+                    HTTP {{ testResult.status }}
+                  </el-tag>
+                </div>
+                <pre class="result-body">{{ testResult.body }}</pre>
+              </el-card>
+            </el-form-item>
           </el-form>
 
           <el-divider />
@@ -281,9 +293,14 @@ const testingConnection = ref(false)
 const connectionStatus = ref('')
 
 // 测试连接
+// 测试结果
+const testResult = ref(null)
+
+// 测试连接
 async function testConnection() {
   testingConnection.value = true
   connectionStatus.value = ''
+  testResult.value = null
 
   try {
     const response = await fetch(settingsStore.settingsData.errorReport.serverUrl, {
@@ -299,15 +316,36 @@ async function testConnection() {
       })
     })
 
+    // 获取响应内容
+    const responseText = await response.text()
+    let responseBody
+    try {
+      responseBody = JSON.stringify(JSON.parse(responseText), null, 2)
+    } catch {
+      responseBody = responseText
+    }
+
+    // 保存测试结果
+    testResult.value = {
+      ok: response.ok,
+      status: response.status,
+      body: responseBody
+    }
+
     if (response.ok) {
       connectionStatus.value = '成功'
       ElMessage.success('连接测试成功')
     } else {
       connectionStatus.value = '失败'
-      ElMessage.error('连接测试失败')
+      ElMessage.error(`连接测试失败 (HTTP ${response.status})`)
     }
   } catch (error) {
     connectionStatus.value = '失败'
+    testResult.value = {
+      ok: false,
+      status: 'Error',
+      body: `连接失败: ${error.message}\n\n可能的原因:\n1. 服务器地址不正确\n2. 服务器未运行\n3. 网络连接问题\n4. CORS 跨域限制`
+    }
     ElMessage.error('连接失败: ' + error.message)
   } finally {
     testingConnection.value = false
@@ -449,5 +487,27 @@ function saveSettings() {
   gap: 8px;
   color: #E6A23C;
   font-size: 12px;
+}
+
+.test-result-card {
+  width: 100%;
+  max-width: 500px;
+  
+  .result-header {
+    margin-bottom: 8px;
+  }
+  
+  .result-body {
+    background: #f5f7fa;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+  }
 }
 </style>
