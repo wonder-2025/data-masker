@@ -49,16 +49,6 @@ jobs:
         if: matrix.platform == 'windows-latest'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Remove MinGW from PATH (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          # 移除 Strawberry Perl 和 MinGW 路径，避免与 MSVC 工具链冲突
-          $env:PATH = ($env:PATH -split ';' | Where-Object { 
-            $_ -notmatch 'mingw' -and $_ -notmatch 'Strawberry' 
-          }) -join ';'
-          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
-
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
