@@ -188,6 +188,9 @@ async function selectFiles() {
       }
       ElMessage.success(`已添加 ${files.length} 个文件`)
       
+      // 标记已有文件（路由守卫需要）
+      sessionStorage.setItem('hasFiles', 'true')
+      
       // 记录操作日志
       logCollector.operation('SELECT_FILES', {
         message: `选择了 ${files.length} 个文件`,
@@ -220,6 +223,9 @@ async function selectFolder() {
           addFileToStore(file)
         }
         ElMessage.success(`已添加 ${files.length} 个文件`)
+        
+        // 标记已有文件（路由守卫需要）
+        sessionStorage.setItem('hasFiles', 'true')
         
         // 记录操作日志
         logCollector.operation('SELECT_FOLDER', {

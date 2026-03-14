@@ -85,8 +85,8 @@
           <h4>映射表 ({{ mappingCount }} 条记录)</h4>
           <div class="actions">
             <el-button size="small" @click="loadMappings">刷新</el-button>
-            <el-button size="small" type="primary" @click="exportMappings">导出</el-button>
-            <el-button size="small" @click="importDialogVisible = true">导入</el-button>
+            <el-button size="small" type="primary" @click="showExportDialog">导出</el-button>
+            <el-button size="small" @click="showImportDialog">导入</el-button>
             <el-button size="small" type="danger" @click="clearMappings">清空</el-button>
           </div>
         </div>
@@ -110,8 +110,32 @@
       </div>
     </div>
     
+    <!-- 导出对话框 -->
+    <el-dialog v-model="exportDialogVisible" title="导出映射表" width="450px">
+      <el-form label-width="100px">
+        <el-form-item label="加密导出">
+          <el-switch v-model="exportEncrypt" />
+        </el-form-item>
+        <el-form-item v-if="exportEncrypt" label="密码">
+          <el-input v-model="exportPassword" type="password" placeholder="请输入加密密码" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="exportDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="doExport">确认导出</el-button>
+      </template>
+    </el-dialog>
+    
     <!-- 导入对话框 -->
     <el-dialog v-model="importDialogVisible" title="导入映射表" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="加密导入">
+          <el-switch v-model="importEncrypted" />
+        </el-form-item>
+        <el-form-item v-if="importEncrypted" label="密码">
+          <el-input v-model="importPassword" type="password" placeholder="请输入解密密码" show-password />
+        </el-form-item>
+      </el-form>
       <el-upload
         drag
         accept=".json"
@@ -136,6 +160,11 @@ const testResults = ref([])
 const mappingRecords = ref([])
 const mappingCount = ref(0)
 const importDialogVisible = ref(false)
+const exportDialogVisible = ref(false)
+const exportEncrypt = ref(false)
+const exportPassword = ref('')
+const importEncrypted = ref(false)
+const importPassword = ref('')
 
 const examples = computed(() => [
   { original: '192.168.1.100', type: '内网', mapped: `${internalPrefix.value}.1.100` },
@@ -188,13 +217,30 @@ async function loadMappings() {
   }
 }
 
+// 显示导出对话框
+function showExportDialog() {
+  exportEncrypt.value = false
+  exportPassword.value = ''
+  exportDialogVisible.value = true
+}
+
+// 显示导入对话框
+function showImportDialog() {
+  importEncrypted.value = false
+  importPassword.value = ''
+  importDialogVisible.value = true
+}
+
 // 导出映射表
-async function exportMappings() {
+async function doExport() {
   try {
     const { invoke } = await import('@tauri-apps/api/core')
-    const records = await invoke('export_ip_mappings')
+    const result = await invoke('export_ip_mappings', {
+      encrypt: exportEncrypt.value,
+      password: exportPassword.value || null
+    })
     
-    const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -202,7 +248,8 @@ async function exportMappings() {
     a.click()
     URL.revokeObjectURL(url)
     
-    ElMessage.success('导出成功')
+    exportDialogVisible.value = false
+    ElMessage.success(exportEncrypt.value ? '加密导出成功' : '导出成功')
   } catch (error) {
     ElMessage.error('导出失败: ' + error)
   }
@@ -213,9 +260,29 @@ async function handleImportFile(file) {
   const reader = new FileReader()
   reader.onload = async (e) => {
     try {
-      const records = JSON.parse(e.target.result)
+      const data = JSON.parse(e.target.result)
       const { invoke } = await import('@tauri-apps/api/core')
-      await invoke('import_ip_mappings', { records })
+      
+      // 检测是否为加密文件
+      const isEncryptedFile = data.encrypted === true
+      
+      if (isEncryptedFile) {
+        // 加密文件导入
+        await invoke('import_ip_mappings', {
+          records: [],
+          encrypted: true,
+          password: importPassword.value,
+          encrypted_data: data.data,
+          salt: data.salt
+        })
+      } else {
+        // 普通文件导入
+        await invoke('import_ip_mappings', {
+          records: data,
+          encrypted: false
+        })
+      }
+      
       ElMessage.success('导入成功')
       importDialogVisible.value = false
       loadMappings()

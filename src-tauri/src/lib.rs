@@ -17,6 +17,23 @@ mod models;
 mod utils;
 
 use tauri::Manager;
+use std::path::PathBuf;
+
+/// 临时目录路径（全局，用于清理）
+static TEMP_DIR: once_cell::sync::Lazy<std::sync::Mutex<Option<PathBuf>>> = 
+    once_cell::sync::Lazy::new(|| std::sync::Mutex::new(None));
+
+/// 清理临时目录
+fn cleanup_temp_dir() {
+    if let Ok(guard) = TEMP_DIR.lock() {
+        if let Some(ref temp_path) = *guard {
+            tracing::info!("清理临时目录: {:?}", temp_path);
+            if let Err(e) = std::fs::remove_dir_all(temp_path) {
+                tracing::warn!("清理临时目录失败: {}", e);
+            }
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -39,6 +56,21 @@ pub fn run() {
             std::fs::create_dir_all(&temp_dir)
                 .expect("无法创建临时文件目录");
             
+            // 保存临时目录路径
+            if let Ok(mut guard) = TEMP_DIR.lock() {
+                *guard = Some(temp_dir.clone());
+            }
+            
+            // 设置 Ctrl+C 处理器
+            let temp_path = temp_dir.clone();
+            ctrlc::set_handler(move || {
+                tracing::info!("收到退出信号，清理临时目录...");
+                if let Err(e) = std::fs::remove_dir_all(&temp_path) {
+                    tracing::warn!("清理临时目录失败: {}", e);
+                }
+                std::process::exit(0);
+            }).expect("无法设置 Ctrl+C 处理器");
+            
             // 创建输出目录
             let output_dir = app_data_dir.join("output");
             std::fs::create_dir_all(&output_dir)
@@ -48,6 +80,12 @@ pub fn run() {
             tracing::info!("数据目录: {:?}", app_data_dir);
             
             Ok(())
+        })
+        .on_window_event(|_window, event| {
+            // 窗口关闭时清理
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                cleanup_temp_dir();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             // 文件操作

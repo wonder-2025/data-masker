@@ -74,6 +74,8 @@ export const useFilesStore = defineStore('files', () => {
     files.value = []
     selectedFile.value = null
     previewContent.value = null
+    // 清除文件标记（路由守卫需要）
+    sessionStorage.removeItem('hasFiles')
   }
 
   /**

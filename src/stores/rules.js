@@ -2,7 +2,36 @@
 // 架构设计/开发实现: JARVIS AI Assistant
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+
+// localStorage 键名
+const CUSTOM_RULES_STORAGE_KEY = 'data-masker-custom-rules'
+
+/**
+ * 从 localStorage 加载自定义规则
+ */
+function loadCustomRulesFromStorage() {
+  try {
+    const stored = localStorage.getItem(CUSTOM_RULES_STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (e) {
+    console.error('加载自定义规则失败:', e)
+  }
+  return []
+}
+
+/**
+ * 保存自定义规则到 localStorage
+ */
+function saveCustomRulesToStorage(rules) {
+  try {
+    localStorage.setItem(CUSTOM_RULES_STORAGE_KEY, JSON.stringify(rules))
+  } catch (e) {
+    console.error('保存自定义规则失败:', e)
+  }
+}
 
 /**
  * 脱敏规则类型枚举
@@ -19,9 +48,6 @@ export const RuleType = {
   IPV6: 'ipv6',                 // IPv6地址
   MAC: 'mac',                   // MAC地址
   API_KEY: 'api_key',           // JSON密钥
-  NAME: 'name',                 // 姓名
-  COMPANY: 'company',           // 公司全称
-  ADDRESS: 'address',           // 地址
   AMOUNT: 'amount',             // 金额
   DATE: 'date',                 // 日期
   URL: 'url',                   // URL
@@ -163,34 +189,6 @@ const builtinRules = [
     strategy: StrategyType.FULL_MASK
   },
   {
-    id: 'rule_name',
-    name: '姓名',
-    type: RuleType.NAME,
-    pattern: '',
-    description: '中文姓名（需NER支持）',
-    enabled: false, // 默认关闭，需要NER模型
-    strategy: StrategyType.FAKE_DATA
-  },
-  {
-    id: 'rule_company',
-    name: '公司全称',
-    type: RuleType.COMPANY,
-    pattern: '',
-    description: '公司名称（需NER支持）',
-    enabled: false,
-    strategy: StrategyType.FAKE_DATA
-  },
-  {
-    id: 'rule_address',
-    name: '地址',
-    type: RuleType.ADDRESS,
-    pattern: '',
-    description: '详细地址信息',
-    enabled: false,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 6, keepEnd: 0 }
-  },
-  {
     id: 'rule_amount',
     name: '金额',
     type: RuleType.AMOUNT,
@@ -238,11 +236,20 @@ export const useRulesStore = defineStore('rules', () => {
   // 内置规则列表
   const builtinRulesList = ref([...builtinRules])
   
-  // 自定义规则列表
-  const customRules = ref([])
+  // 自定义规则列表 - 从 localStorage 初始化
+  const customRules = ref(loadCustomRulesFromStorage())
   
   // 规则优先级顺序
   const rulePriority = ref([])
+
+  // 监听 customRules 变化，自动保存到 localStorage
+  watch(
+    customRules,
+    (newRules) => {
+      saveCustomRulesToStorage(newRules)
+    },
+    { deep: true }
+  )
 
   // 计算属性：所有启用的规则
   const enabledRules = computed(() => {

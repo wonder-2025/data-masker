@@ -63,7 +63,10 @@ const router = createRouter({
 // 应用解锁状态
 let isUnlocked = false
 
-// 路由守卫 - 密码保护
+// 需要文件检查的路由
+const FILE_REQUIRED_ROUTES = ['/preview', '/processing', '/result']
+
+// 路由守卫 - 密码保护和文件检查
 router.beforeEach((to, from, next) => {
   // 更新页面标题
   document.title = `${to.meta.title} - Data Masker` || 'Data Masker'
@@ -77,13 +80,28 @@ router.beforeEach((to, from, next) => {
     // 显示密码输入对话框
     showPasswordDialog(password, () => {
       isUnlocked = true
-      next()
+      // 密码验证成功后继续路由检查
+      proceedWithRouteCheck(to, next)
     })
     return
   }
   
-  next()
+  proceedWithRouteCheck(to, next)
 })
+
+// 路由检查（文件状态）
+function proceedWithRouteCheck(to, next) {
+  // 检查是否需要文件
+  if (FILE_REQUIRED_ROUTES.includes(to.path)) {
+    const hasFiles = sessionStorage.getItem('hasFiles') === 'true'
+    if (!hasFiles) {
+      // 未选择文件，重定向到文件选择页
+      next({ name: 'FileSelect', replace: true })
+      return
+    }
+  }
+  next()
+}
 
 // 密码输入对话框
 function showPasswordDialog(correctPassword, onSuccess) {
