@@ -317,7 +317,7 @@ async function testConnection() {
 // 选择输出目录
 async function selectOutputDir() {
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     const selected = await invoke('select_directory')
     if (selected) {
       settingsStore.settingsData.general.outputDir = selected

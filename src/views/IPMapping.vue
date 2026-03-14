@@ -150,7 +150,7 @@ async function testMapping() {
   const ips = testIP.value.split(',').map(ip => ip.trim()).filter(Boolean)
   
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     const results = await invoke('map_ip_batch', { ips })
     
     testResults.value = results.map(([original, mapped]) => ({
@@ -166,7 +166,7 @@ async function testMapping() {
 // 更新策略
 async function updateStrategy() {
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     await invoke('set_mapping_strategy', {
       internalPrefix: internalPrefix.value,
       publicStrategy: publicStrategy.value
@@ -180,7 +180,7 @@ async function updateStrategy() {
 // 加载映射表
 async function loadMappings() {
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     mappingRecords.value = await invoke('get_ip_mappings')
     mappingCount.value = await invoke('get_mapping_count')
   } catch (error) {
@@ -191,7 +191,7 @@ async function loadMappings() {
 // 导出映射表
 async function exportMappings() {
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     const records = await invoke('export_ip_mappings')
     
     const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' })
@@ -214,7 +214,7 @@ async function handleImportFile(file) {
   reader.onload = async (e) => {
     try {
       const records = JSON.parse(e.target.result)
-      const { invoke } = await import('@tauri-apps/api')
+      const { invoke } = await import('@tauri-apps/api/core')
       await invoke('import_ip_mappings', { records })
       ElMessage.success('导入成功')
       importDialogVisible.value = false
@@ -235,7 +235,7 @@ async function clearMappings() {
       type: 'warning'
     })
     
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     await invoke('clear_ip_mappings')
     ElMessage.success('已清空')
     loadMappings()

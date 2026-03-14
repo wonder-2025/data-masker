@@ -205,7 +205,7 @@ async function startProcessing() {
   
   try {
     // 调用 Tauri 命令处理文件
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i]

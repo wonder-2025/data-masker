@@ -307,7 +307,7 @@ function getTypeLabel(type) {
 // 导出全部文件
 async function exportAll() {
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     const outputPath = await invoke('export_all_results', {
       results: results.value
     })
@@ -320,7 +320,7 @@ async function exportAll() {
 // 打开输出目录
 async function openOutputDir() {
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     await invoke('open_output_directory')
   } catch (error) {
     ElMessage.error('打开目录失败: ' + (error.message || error))
@@ -330,7 +330,7 @@ async function openOutputDir() {
 // 导出报告
 async function exportReport() {
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     const reportPath = await invoke('export_report', {
       reportData: resultStore.getReportData()
     })
@@ -368,7 +368,7 @@ async function downloadFile(result) {
   }
   
   try {
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     await invoke('open_file_location', { path: result.outputPath })
   } catch (error) {
     ElMessage.error('打开文件失败: ' + (error.message || error))
@@ -388,7 +388,7 @@ async function clearTempFiles() {
       }
     )
     
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     await invoke('clear_temp_files')
     
     ElMessage.success('临时文件已清除')

@@ -215,7 +215,7 @@ async function refreshPreview() {
   
   try {
     // 调用 Tauri 命令生成预览
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     const result = await invoke('generate_preview', {
       filePath: selectedFile.value.path,
       rules: rulesStore.enabledRules

@@ -315,7 +315,7 @@ async function previewFile(file) {
   
   try {
     // 调用 Tauri 命令读取文件内容
-    const { invoke } = await import('@tauri-apps/api')
+    const { invoke } = await import('@tauri-apps/api/core')
     const content = await invoke('read_file_preview', { path: file.path })
     previewContent.value = content
   } catch (error) {
