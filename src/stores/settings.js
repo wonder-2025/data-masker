@@ -2,6 +2,39 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 
 export const useSettingsStore = defineStore('settings', () => {
+  // 密码 hash（不存储明文密码）
+  let passwordHash = null
+
+  // 简单的密码 hash 函数
+  async function hashPassword(password) {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(password + 'data-masker-salt')
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  }
+
+  // 验证密码
+  async function verifyPassword(password) {
+    if (!passwordHash) return false
+    const hash = await hashPassword(password)
+    return hash === passwordHash
+  }
+
+  // 设置密码
+  async function setPassword(password) {
+    passwordHash = await hashPassword(password)
+    localStorage.setItem('data-masker-password-hash', passwordHash)
+  }
+
+  // 检查是否设置了密码
+  function hasPassword() {
+    if (!passwordHash) {
+      passwordHash = localStorage.getItem('data-masker-password-hash')
+    }
+    return !!passwordHash
+  }
+
   // 完整的设置对象
   const settingsData = ref({
     // 通用设置
@@ -22,7 +55,7 @@ export const useSettingsStore = defineStore('settings', () => {
     // 安全设置
     security: {
       passwordProtect: false,
-      password: '',
+      // 密码不再明文存储，改为使用 hash
       autoCleanTemp: true,
       cleanAfter: 60,
       encryptMapping: true
@@ -35,13 +68,13 @@ export const useSettingsStore = defineStore('settings', () => {
       enableOCR: false,
       enableNER: false
     },
-    // 错误报告
+    // 错误报告（移除硬编码服务器地址）
     errorReport: {
-      enabled: true,
-      serverUrl: 'http://106.12.190.227:30051/api/data-masker/logs',
-      collectErrors: true,
-      collectOperations: true,
-      collectAnalytics: true
+      enabled: false,
+      serverUrl: '', // 用户自定义服务器地址
+      collectErrors: false,
+      collectOperations: false,
+      collectAnalytics: false
     }
   })
 
@@ -78,7 +111,6 @@ export const useSettingsStore = defineStore('settings', () => {
       },
       security: {
         passwordProtect: false,
-        password: '',
         autoCleanTemp: true,
         cleanAfter: 60,
         encryptMapping: true
@@ -91,8 +123,11 @@ export const useSettingsStore = defineStore('settings', () => {
         enableNER: false
       },
       errorReport: {
-        enabled: true,
-        serverUrl: 'http://106.12.190.227:30051/api/data-masker/error-log'
+        enabled: false,
+        serverUrl: '',
+        collectErrors: false,
+        collectOperations: false,
+        collectAnalytics: false
       }
     }
   }
@@ -130,6 +165,10 @@ export const useSettingsStore = defineStore('settings', () => {
     updateSettings,
     resetToDefault,
     saveSettings,
-    loadSettings
+    loadSettings,
+    // 密码相关函数
+    setPassword,
+    verifyPassword,
+    hasPassword
   }
 })

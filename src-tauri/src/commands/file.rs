@@ -165,10 +165,22 @@ pub async fn save_file(path: String, content: Vec<u8>) -> Result<(), String> {
 pub async fn open_file_location(path: String) -> Result<(), String> {
     let file_path = PathBuf::from(&path);
     
+    // 验证路径是否存在
+    if !file_path.exists() {
+        return Err(format!("文件不存在: {}", path));
+    }
+    
+    // 获取规范路径，防止路径遍历攻击
+    let canonical_path = file_path.canonicalize()
+        .map_err(|e| format!("路径解析失败: {}", e))?;
+    
+    // 转换为字符串，确保安全
+    let path_str = canonical_path.to_string_lossy().into_owned();
+    
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
-            .args(["/select,", &file_path.to_string_lossy()])
+            .args(["/select,", &path_str])
             .spawn()
             .map_err(|e| format!("打开目录失败: {}", e))?;
     }
@@ -176,14 +188,14 @@ pub async fn open_file_location(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .args(["-R", &file_path.to_string_lossy()])
+            .args(["-R", &path_str])
             .spawn()
             .map_err(|e| format!("打开目录失败: {}", e))?;
     }
     
     #[cfg(target_os = "linux")]
     {
-        if let Some(parent) = file_path.parent() {
+        if let Some(parent) = canonical_path.parent() {
             std::process::Command::new("xdg-open")
                 .arg(parent)
                 .spawn()
@@ -261,6 +273,13 @@ fn create_file_info(path: &std::path::Path) -> Option<FileInfo> {
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
+    
+    // 文件大小限制：500MB
+    const MAX_FILE_SIZE: u64 = 500 * 1024 * 1024;
+    if metadata.len() > MAX_FILE_SIZE {
+        tracing::warn!("文件过大，跳过: {} ({} 字节)", name, metadata.len());
+        return None;
+    }
     
     Some(FileInfo {
         id: uuid::Uuid::new_v4().to_string(),
