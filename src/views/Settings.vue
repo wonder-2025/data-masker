@@ -186,6 +186,67 @@
         </div>
       </el-tab-pane>
       
+      <!-- 错误报告 -->
+      <el-tab-pane label="错误报告" name="errorReport">
+        <div class="settings-section">
+          <h3>错误日志提交</h3>
+          <el-alert
+            type="info"
+            :closable="false"
+            style="margin-bottom: 20px;"
+          >
+            <template #title>
+              启用后，应用遇到错误时会自动将日志发送到服务器，帮助开发者快速定位和修复问题。
+            </template>
+          </el-alert>
+
+          <el-form label-width="140px">
+            <el-form-item label="启用错误日志">
+              <el-switch v-model="settings.errorReport.enabled" />
+              <div class="form-tip">启用后，遇到错误时自动发送日志</div>
+            </el-form-item>
+
+            <el-form-item label="日志服务器地址" v-if="settings.errorReport.enabled">
+              <el-input
+                v-model="settings.errorReport.serverUrl"
+                placeholder="http://your-server:port/api/error-log"
+                style="width: 400px;"
+              />
+              <div class="form-tip">接收错误日志的服务器地址</div>
+            </el-form-item>
+
+            <el-form-item v-if="settings.errorReport.enabled">
+              <el-button @click="testConnection" :loading="testingConnection">
+                测试连接
+              </el-button>
+              <span v-if="connectionStatus" :style="{ color: connectionStatus === '成功' ? '#67C23A' : '#F56C6C', marginLeft: '10px' }">
+                {{ connectionStatus }}
+              </span>
+            </el-form-item>
+          </el-form>
+
+          <el-divider />
+
+          <h3>数据隐私</h3>
+          <el-form label-width="140px">
+            <el-form-item>
+              <div class="privacy-note">
+                <el-icon :size="16" color="#E6A23C"><WarningFilled /></el-icon>
+                <span>发送的日志会自动脱敏文件路径等敏感信息</span>
+              </div>
+              <div class="log-sample">
+                <p><strong>日志内容示例：</strong></p>
+                <pre>- 应用版本：1.0.0
+- 操作系统：Windows 11
+- 错误类型：FileProcessingError
+- 错误信息：无法读取文件（路径已脱敏）
+- 时间戳：2026-03-14T11:30:00</pre>
+              </div>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-tab-pane>
+
       <!-- 关于 -->
       <el-tab-pane label="关于" name="about">
         <div class="about-section">
@@ -262,8 +323,46 @@ const settingsStore = useSettingsStore()
 // 当前标签页
 const activeTab = ref('general')
 
+// 测试连接状态
+const testingConnection = ref(false)
+const connectionStatus = ref('')
+
 // 设置数据
 const settings = computed(() => settingsStore.settings)
+
+// 测试连接
+async function testConnection() {
+  testingConnection.value = true
+  connectionStatus.value = ''
+
+  try {
+    const response = await fetch(settings.value.errorReport.serverUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_name: 'data-masker',
+        version: '1.0.0',
+        os: navigator.platform,
+        error_type: 'TestConnection',
+        error_message: '测试连接',
+        user_description: '这是一条测试消息'
+      })
+    })
+
+    if (response.ok) {
+      connectionStatus.value = '成功'
+      ElMessage.success('连接测试成功')
+    } else {
+      connectionStatus.value = '失败'
+      ElMessage.error('连接测试失败')
+    }
+  } catch (error) {
+    connectionStatus.value = '失败'
+    ElMessage.error('连接失败: ' + error.message)
+  } finally {
+    testingConnection.value = false
+  }
+}
 
 // 选择输出目录
 async function selectOutputDir() {
@@ -404,5 +503,33 @@ watch(settings, () => {
   margin-top: 32px;
   padding-top: 24px;
   border-top: 1px solid #ebeef5;
+}
+
+.privacy-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #E6A23C;
+  margin-bottom: 12px;
+}
+
+.log-sample {
+  background: #f5f7fa;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+
+  p {
+    margin: 0 0 8px;
+    color: #606266;
+  }
+
+  pre {
+    margin: 0;
+    color: #909399;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
 }
 </style>

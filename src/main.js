@@ -11,6 +11,7 @@ import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import App from './App.vue'
 import router from './router'
 import './styles/main.css'
+import errorReporter from './utils/errorReporter'
 
 const app = createApp(App)
 
@@ -19,10 +20,25 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
 
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
 app.use(ElementPlus, {
   locale: zhCn,
 })
 
+// 配置 Vue 全局错误处理器
+app.config.errorHandler = (err, vm, info) => {
+  console.error('Vue Error:', err)
+  errorReporter.reportError({
+    type: 'VueError',
+    message: err.message || String(err),
+    stack: err.stack || '',
+    info: info || ''
+  })
+}
+
 app.mount('#app')
+
+// 初始化错误报告器
+errorReporter.init()

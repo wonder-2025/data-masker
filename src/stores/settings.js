@@ -44,6 +44,12 @@ const defaultSettings = {
     concurrentFiles: 3,        // 并发处理文件数
     enableOCR: false,          // 启用OCR
     enableNER: false           // 启用NER实体识别
+  },
+
+  // 错误日志提交
+  errorReport: {
+    enabled: true,             // 是否启用错误日志提交
+    serverUrl: 'http://106.12.190.227:30050/api/error-log'  // 日志服务器地址
   }
 }
 
