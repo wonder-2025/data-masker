@@ -9,6 +9,7 @@ use crate::services::{IP_MAPPER, IPMappingRecord, MappingStrategy};
 use crate::services::crypto::Encryptor;
 use std::sync::PoisonError;
 use std::sync::MutexGuard;
+use base64::Engine;
 
 /// 映射单个IP地址
 #[tauri::command]
