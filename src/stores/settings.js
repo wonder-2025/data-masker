@@ -49,7 +49,7 @@ const defaultSettings = {
   // 错误日志提交
   errorReport: {
     enabled: true,             // 是否启用错误日志提交
-    serverUrl: 'http://106.12.190.227:30050/api/error-log'  // 日志服务器地址
+    serverUrl: 'http://106.12.190.227:30051/api/error-log'  // 日志服务器地址
   }
 }
 
