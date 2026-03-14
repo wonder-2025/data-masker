@@ -40,7 +40,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || 'x86_64-pc-windows-msvc' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc' || '' }}
 
       - name: Remove MinGW from PATH (Windows)
         if: matrix.platform == 'windows-latest'
@@ -59,6 +59,7 @@ jobs:
         run: npm cache clean --force
 
       - name: Remove package-lock.json
+        shell: bash
         run: rm -f package-lock.json
 
       - name: Install frontend dependencies
