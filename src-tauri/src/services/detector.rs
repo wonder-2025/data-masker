@@ -38,6 +38,11 @@ pub struct Rule {
     pub strategy_config: StrategyConfig,
     pub need_luhn_check: bool,
     pub enabled: bool,
+    // 关键字替换模式字段
+    pub mode: String,           // 'regex' 或 'keyword'
+    pub keyword: String,        // 要查找的关键字
+    pub replacement: String,    // 替换文本
+    pub case_sensitive: bool,   // 大小写敏感
 }
 
 #[derive(Debug, Clone)]
@@ -59,7 +64,8 @@ impl Detector {
         let mut compiled_patterns = HashMap::new();
         
         for rule in &rules {
-            if !rule.pattern.is_empty() {
+            // 只有正则模式且 pattern 非空才编译
+            if rule.mode != "keyword" && !rule.pattern.is_empty() {
                 if let Ok(re) = Regex::new(&rule.pattern) {
                     compiled_patterns.insert(rule.id.clone(), re);
                 }
@@ -102,34 +108,87 @@ impl Detector {
     fn detect_by_rule(&self, content: &str, rule: &Rule) -> Vec<Detection> {
         let mut detections = Vec::new();
         
-        if let Some(re) = self.compiled_patterns.get(&rule.id) {
-            for cap in re.find_iter(content) {
-                let matched_text = cap.as_str();
-                
-                // Luhn校验（银行卡号）
-                if rule.need_luhn_check && !self.luhn_check(matched_text) {
-                    continue;
+        // 根据模式选择检测方式
+        if rule.mode == "keyword" {
+            // 关键字替换模式
+            detections = self.detect_by_keyword(content, rule);
+        } else if !rule.pattern.is_empty() {
+            // 正则表达式模式
+            if let Some(re) = self.compiled_patterns.get(&rule.id) {
+                for cap in re.find_iter(content) {
+                    let matched_text = cap.as_str();
+                    
+                    // Luhn校验（银行卡号）
+                    if rule.need_luhn_check && !self.luhn_check(matched_text) {
+                        continue;
+                    }
+                    
+                    // 身份证校验
+                    if rule.rule_type == "id_card" && !self.validate_id_card(matched_text) {
+                        continue;
+                    }
+                    
+                    // 生成脱敏值
+                    let masked = self.generate_masked_value(matched_text, rule);
+                    
+                    detections.push(Detection {
+                        info_type: rule.rule_type.clone(),
+                        original: matched_text.to_string(),
+                        masked,
+                        start: cap.start(),
+                        end: cap.end(),
+                        line: 0,
+                        column: 0,
+                        confidence: 1.0,
+                    });
                 }
-                
-                // 身份证校验
-                if rule.rule_type == "id_card" && !self.validate_id_card(matched_text) {
-                    continue;
-                }
-                
-                // 生成脱敏值
-                let masked = self.generate_masked_value(matched_text, rule);
-                
-                detections.push(Detection {
-                    info_type: rule.rule_type.clone(),
-                    original: matched_text.to_string(),
-                    masked,
-                    start: cap.start(),
-                    end: cap.end(),
-                    line: 0,
-                    column: 0,
-                    confidence: 1.0,
-                });
             }
+        }
+        
+        detections
+    }
+    
+    /// 关键字检测（支持全局替换）
+    fn detect_by_keyword(&self, content: &str, rule: &Rule) -> Vec<Detection> {
+        let mut detections = Vec::new();
+        
+        if rule.keyword.is_empty() {
+            return detections;
+        }
+        
+        let search_text = if rule.case_sensitive {
+            rule.keyword.clone()
+        } else {
+            rule.keyword.to_lowercase()
+        };
+        
+        let content_to_search = if rule.case_sensitive {
+            content.to_string()
+        } else {
+            content.to_lowercase()
+        };
+        
+        // 查找所有匹配位置
+        let mut start = 0;
+        while let Some(pos) = content_to_search[start..].find(&search_text) {
+            let abs_start = start + pos;
+            let abs_end = abs_start + rule.keyword.len();
+            
+            // 获取原始文本（保持大小写）
+            let original = &content[abs_start..abs_end];
+            
+            detections.push(Detection {
+                info_type: "keyword".to_string(),
+                original: original.to_string(),
+                masked: rule.replacement.clone(),
+                start: abs_start,
+                end: abs_end,
+                line: 0,
+                column: 0,
+                confidence: 1.0,
+            });
+            
+            start = abs_end;
         }
         
         detections

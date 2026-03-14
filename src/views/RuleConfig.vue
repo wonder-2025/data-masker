@@ -93,11 +93,27 @@
           </el-empty>
           
           <el-table v-else :data="customRules" style="width: 100%">
-            <el-table-column prop="name" label="规则名称" min-width="150" />
-            <el-table-column prop="pattern" label="正则表达式" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="name" label="规则名称" min-width="120" />
+            <el-table-column prop="mode" label="类型" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.mode === 'keyword' ? 'success' : 'primary'">
+                  {{ row.mode === 'keyword' ? '关键字' : '正则' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="匹配内容" min-width="200" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span v-if="row.mode === 'keyword'">
+                  "{{ row.keyword }}" → "{{ row.replacement }}"
+                  <el-tag v-if="row.caseSensitive" size="small" type="warning" style="margin-left: 4px">区分大小写</el-tag>
+                </span>
+                <span v-else>{{ row.pattern }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="strategy" label="脱敏策略" width="120">
               <template #default="{ row }">
-                <el-tag size="small">{{ getStrategyLabel(row.strategy) }}</el-tag>
+                <el-tag size="small" v-if="row.mode === 'regex'">{{ getStrategyLabel(row.strategy) }}</el-tag>
+                <el-tag size="small" type="info" v-else>直接替换</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="enabled" label="状态" width="100" align="center">
@@ -153,7 +169,15 @@
           <el-input v-model="ruleForm.name" placeholder="请输入规则名称" />
         </el-form-item>
         
-        <el-form-item label="正则表达式" prop="pattern">
+        <el-form-item label="规则类型" prop="mode">
+          <el-radio-group v-model="ruleForm.mode">
+            <el-radio value="regex">正则表达式</el-radio>
+            <el-radio value="keyword">关键字替换</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <!-- 正则表达式模式 -->
+        <el-form-item v-if="ruleForm.mode === 'regex'" label="正则表达式" prop="pattern">
           <el-input
             v-model="ruleForm.pattern"
             type="textarea"
@@ -165,11 +189,36 @@
           </div>
         </el-form-item>
         
+        <!-- 关键字替换模式 -->
+        <template v-if="ruleForm.mode === 'keyword'">
+          <el-form-item label="查找关键字" prop="keyword">
+            <el-input
+              v-model="ruleForm.keyword"
+              placeholder="请输入要查找的关键字"
+            />
+            <div class="form-tip">
+              将在文件中查找此关键字并替换
+            </div>
+          </el-form-item>
+          
+          <el-form-item label="替换为" prop="replacement">
+            <el-input
+              v-model="ruleForm.replacement"
+              placeholder="请输入替换后的文本"
+            />
+          </el-form-item>
+          
+          <el-form-item label="大小写敏感">
+            <el-switch v-model="ruleForm.caseSensitive" />
+            <span class="switch-label">{{ ruleForm.caseSensitive ? '是' : '否（默认）' }}</span>
+          </el-form-item>
+        </template>
+        
         <el-form-item label="规则描述" prop="description">
           <el-input v-model="ruleForm.description" placeholder="请输入规则描述（可选）" />
         </el-form-item>
         
-        <el-form-item label="脱敏策略" prop="strategy">
+        <el-form-item v-if="ruleForm.mode === 'regex'" label="脱敏策略" prop="strategy">
           <el-select v-model="ruleForm.strategy" style="width: 100%;">
             <el-option label="完全隐藏" value="full_mask" />
             <el-option label="部分掩码" value="partial_mask" />
@@ -181,7 +230,7 @@
         </el-form-item>
         
         <el-form-item
-          v-if="ruleForm.strategy === 'partial_mask'"
+          v-if="ruleForm.mode === 'regex' && ruleForm.strategy === 'partial_mask'"
           label="保留位数"
         >
           <div class="keep-digits">
@@ -193,7 +242,7 @@
         </el-form-item>
         
         <el-form-item
-          v-if="ruleForm.strategy === 'custom'"
+          v-if="ruleForm.mode === 'regex' && ruleForm.strategy === 'custom'"
           label="替换文本"
           prop="customText"
         >
@@ -265,7 +314,11 @@ const ruleFormRef = ref(null)
 
 const ruleForm = reactive({
   name: '',
+  mode: 'regex', // 'regex' 或 'keyword'
   pattern: '',
+  keyword: '',
+  replacement: '***',
+  caseSensitive: false,
   description: '',
   strategy: 'full_mask',
   keepStart: 3,
@@ -275,7 +328,30 @@ const ruleForm = reactive({
 
 const ruleFormRules = {
   name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
-  pattern: [{ required: true, message: '请输入正则表达式', trigger: 'blur' }],
+  pattern: [{ 
+    required: true, 
+    message: '请输入正则表达式', 
+    trigger: 'blur',
+    validator: (rule, value, callback) => {
+      if (ruleForm.mode === 'regex' && !value) {
+        callback(new Error('请输入正则表达式'))
+      } else {
+        callback()
+      }
+    }
+  }],
+  keyword: [{ 
+    required: true, 
+    message: '请输入要查找的关键字', 
+    trigger: 'blur',
+    validator: (rule, value, callback) => {
+      if (ruleForm.mode === 'keyword' && !value) {
+        callback(new Error('请输入要查找的关键字'))
+      } else {
+        callback()
+      }
+    }
+  }],
   strategy: [{ required: true, message: '请选择脱敏策略', trigger: 'change' }]
 }
 
@@ -313,7 +389,11 @@ function showAddRuleDialog() {
   editingRuleId.value = null
   Object.assign(ruleForm, {
     name: '',
+    mode: 'regex',
     pattern: '',
+    keyword: '',
+    replacement: '***',
+    caseSensitive: false,
     description: '',
     strategy: 'full_mask',
     keepStart: 3,
@@ -329,9 +409,13 @@ function editRule(rule) {
   editingRuleId.value = rule.id
   Object.assign(ruleForm, {
     name: rule.name,
-    pattern: rule.pattern,
+    mode: rule.mode || 'regex',
+    pattern: rule.pattern || '',
+    keyword: rule.keyword || '',
+    replacement: rule.replacement || '***',
+    caseSensitive: rule.caseSensitive || false,
     description: rule.description || '',
-    strategy: rule.strategy,
+    strategy: rule.strategy || 'full_mask',
     keepStart: rule.strategyConfig?.keepStart || 3,
     keepEnd: rule.strategyConfig?.keepEnd || 4,
     customText: rule.strategyConfig?.customText || ''
@@ -346,12 +430,19 @@ async function saveRule() {
     
     const ruleData = {
       name: ruleForm.name,
-      pattern: ruleForm.pattern,
+      mode: ruleForm.mode,
+      // 正则模式字段
+      pattern: ruleForm.mode === 'regex' ? ruleForm.pattern : '',
+      // 关键字模式字段
+      keyword: ruleForm.mode === 'keyword' ? ruleForm.keyword : '',
+      replacement: ruleForm.mode === 'keyword' ? ruleForm.replacement : '***',
+      caseSensitive: ruleForm.mode === 'keyword' ? ruleForm.caseSensitive : false,
+      // 通用字段
       description: ruleForm.description,
-      strategy: ruleForm.strategy,
-      strategyConfig: ruleForm.strategy === 'partial_mask' 
+      strategy: ruleForm.mode === 'regex' ? ruleForm.strategy : 'keyword_replace',
+      strategyConfig: ruleForm.mode === 'regex' && ruleForm.strategy === 'partial_mask' 
         ? { keepStart: ruleForm.keepStart, keepEnd: ruleForm.keepEnd }
-        : ruleForm.strategy === 'custom'
+        : ruleForm.mode === 'regex' && ruleForm.strategy === 'custom'
         ? { customText: ruleForm.customText }
         : {}
     }
@@ -536,5 +627,11 @@ function goNext() {
   span {
     color: #606266;
   }
+}
+
+.switch-label {
+  margin-left: 8px;
+  color: #909399;
+  font-size: 12px;
 }
 </style>

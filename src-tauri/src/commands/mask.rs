@@ -60,6 +60,15 @@ pub struct Rule {
     pub strategy_config: Option<StrategyConfig>,
     #[serde(default)]
     pub need_luhn_check: bool,
+    // 关键字替换模式字段
+    #[serde(default)]
+    pub mode: String,           // 'regex' 或 'keyword'
+    #[serde(default)]
+    pub keyword: String,        // 要查找的关键字
+    #[serde(default)]
+    pub replacement: String,    // 替换文本
+    #[serde(default)]
+    pub case_sensitive: bool,   // 大小写敏感
 }
 
 /// 将 API Rule 转换为 detector Rule
@@ -85,6 +94,11 @@ impl From<Rule> for crate::services::detector::Rule {
             },
             need_luhn_check: rule.need_luhn_check,
             enabled: rule.enabled,
+            // 关键字替换模式字段
+            mode: rule.mode,
+            keyword: rule.keyword,
+            replacement: rule.replacement,
+            case_sensitive: rule.case_sensitive,
         }
     }
 }

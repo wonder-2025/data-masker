@@ -30,6 +30,14 @@ export const RuleType = {
 }
 
 /**
+ * 自定义规则模式枚举
+ */
+export const RuleMode = {
+  REGEX: 'regex',               // 正则表达式模式
+  KEYWORD: 'keyword'            // 关键字替换模式
+}
+
+/**
  * 脱敏策略类型枚举
  */
 export const StrategyType = {
@@ -305,7 +313,14 @@ export const useRulesStore = defineStore('rules', () => {
       id: `custom_${Date.now()}`,
       name: rule.name,
       type: RuleType.CUSTOM,
-      pattern: rule.pattern,
+      mode: rule.mode || 'regex', // 'regex' 或 'keyword'
+      // 正则模式
+      pattern: rule.pattern || '',
+      // 关键字模式
+      keyword: rule.keyword || '',
+      replacement: rule.replacement || '***',
+      caseSensitive: rule.caseSensitive || false,
+      // 通用字段
       description: rule.description || '',
       enabled: true,
       strategy: rule.strategy || StrategyType.FULL_MASK,
