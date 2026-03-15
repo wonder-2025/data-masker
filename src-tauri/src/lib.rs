@@ -137,9 +137,25 @@ pub fn run() {
 
 /// 初始化日志系统
 fn init_logger() {
+    // 从环境变量读取日志级别，默认为 INFO
+    let log_level = std::env::var("DATA_MASKER_LOG_LEVEL")
+        .unwrap_or_else(|_| "info".to_string())
+        .to_lowercase();
+    
+    let level = match log_level.as_str() {
+        "trace" => tracing::Level::TRACE,
+        "debug" => tracing::Level::DEBUG,
+        "info" => tracing::Level::INFO,
+        "warn" => tracing::Level::WARN,
+        "error" => tracing::Level::ERROR,
+        _ => tracing::Level::INFO,
+    };
+    
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(level)
         .with_target(false)
         .with_thread_ids(false)
         .init();
+    
+    tracing::info!("日志级别设置为: {}", log_level);
 }

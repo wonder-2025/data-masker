@@ -9,6 +9,8 @@
 
 use serde::{Deserialize, Serialize};
 use tauri::command;
+use tauri::Manager;
+use std::path::PathBuf;
 
 /// 敏感信息检测结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -176,12 +178,30 @@ pub async fn apply_mask(
 /// 处理单个文件
 #[command]
 pub async fn process_file(
+    app: tauri::AppHandle,
     file_path: String,
     rules: Vec<Rule>,
 ) -> Result<MaskResult, String> {
     use std::time::Instant;
     
     let start_time = Instant::now();
+    let input_path = PathBuf::from(&file_path);
+    
+    // 检查文件是否存在
+    if !input_path.exists() {
+        return Err(format!("文件不存在: {}", file_path));
+    }
+    
+    // 获取文件扩展名
+    let extension = input_path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    
+    // 检查不支持的格式
+    if extension == "doc" {
+        return Err("不支持旧版 Word 格式 (.doc)，请将文件转换为 .docx 格式后重试".to_string());
+    }
     
     // 读取文件内容
     let content = crate::commands::file::read_file_content(file_path.clone()).await?;
@@ -193,15 +213,109 @@ pub async fn process_file(
         .collect();
     
     // 检测敏感信息
-    let detector = crate::services::detector::Detector::new(detector_rules);
+    let detector = crate::services::detector::Detector::new(detector_rules.clone());
     let detections = detector.detect_all(&content.content);
+    
+    // 生成替换列表
+    let replacements: Vec<(String, String)> = detections.iter()
+        .map(|d| (d.original.clone(), d.masked.clone()))
+        .collect();
     
     // 应用脱敏
     let masker = crate::services::masker::Masker::new();
     let masked_content = masker.mask_content(&content.content, &detections);
     
     // 生成输出路径
-    let output_path = generate_output_path(&file_path);
+    let output_dir = app.path()
+        .app_data_dir()
+        .map(|p| p.join("output"))
+        .map_err(|e| format!("无法获取输出目录: {}", e))?;
+    
+    std::fs::create_dir_all(&output_dir)
+        .map_err(|e| format!("创建输出目录失败: {}", e))?;
+    
+    let file_stem = input_path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("output");
+    
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+    let output_name = format!("{}_masked_{}.{}", file_stem, timestamp, extension);
+    let output_path = output_dir.join(&output_name);
+    
+    // 根据文件类型保存
+    let save_result = match extension.as_str() {
+        "txt" | "md" | "json" | "xml" | "csv" => {
+            // 文本文件直接保存
+            std::fs::write(&output_path, &masked_content)
+                .map_err(|e| format!("保存文件失败: {}", e))
+        }
+        "pdf" => {
+            // PDF 文件处理
+            if replacements.is_empty() {
+                // 没有需要替换的内容，直接复制
+                std::fs::copy(&input_path, &output_path)
+                    .map_err(|e| format!("复制文件失败: {}", e))?;
+                Ok(())
+            } else {
+                crate::services::parser::pdf::PdfMasker::mask_pdf(
+                    &input_path,
+                    &output_path,
+                    &replacements
+                )
+            }
+        }
+        "docx" => {
+            // Word 文件处理
+            if replacements.is_empty() {
+                std::fs::copy(&input_path, &output_path)
+                    .map_err(|e| format!("复制文件失败: {}", e))?;
+                Ok(())
+            } else {
+                crate::services::parser::word::WordMasker::mask_word(
+                    &input_path,
+                    &output_path,
+                    &replacements
+                )
+            }
+        }
+        "xlsx" | "xls" => {
+            // Excel 文件处理
+            if replacements.is_empty() {
+                std::fs::copy(&input_path, &output_path)
+                    .map_err(|e| format!("复制文件失败: {}", e))?;
+                Ok(())
+            } else {
+                crate::services::parser::excel::ExcelMasker::mask_excel(
+                    &input_path,
+                    &output_path,
+                    &replacements
+                )
+            }
+        }
+        "pptx" => {
+            // PPT 文件处理 - 目前仅支持复制
+            // TODO: 实现 PPT 文件的脱敏处理
+            std::fs::copy(&input_path, &output_path)
+                .map_err(|e| format!("复制文件失败: {}", e))?;
+            Ok(())
+        }
+        _ => {
+            // 其他格式保存为文本
+            std::fs::write(&output_path, &masked_content)
+                .map_err(|e| format!("保存文件失败: {}", e))
+        }
+    };
+    
+    // 检查保存结果
+    if let Err(e) = save_result {
+        tracing::error!("保存文件失败: {}", e);
+        return Err(e);
+    }
+    
+    // 验证输出文件
+    if !output_path.exists() {
+        return Err(format!("输出文件创建失败: {:?}", output_path));
+    }
     
     // 计算处理时间
     let elapsed = start_time.elapsed();
@@ -221,11 +335,14 @@ pub async fn process_file(
     
     Ok(MaskResult {
         file_id: uuid::Uuid::new_v4().to_string(),
-        file_name: content.path.split('/').last().unwrap_or("unknown").to_string(),
+        file_name: input_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown")
+            .to_string(),
         status: "done".to_string(),
         sensitive_info,
         masked_content: Some(masked_content),
-        output_path: Some(output_path),
+        output_path: Some(output_path.to_string_lossy().to_string()),
         sensitive_count,
         processing_time,
     })

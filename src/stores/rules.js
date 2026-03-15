@@ -2,473 +2,307 @@
 // 架构设计/开发实现: JARVIS AI Assistant
 
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 
-// localStorage 键名
-const CUSTOM_RULES_STORAGE_KEY = 'data-masker-custom-rules'
-const BUILTIN_RULES_CONFIG_KEY = 'data-masker-builtin-rules-config'
-
-/**
- * 从 localStorage 加载自定义规则
- */
-function loadCustomRulesFromStorage() {
-  try {
-    const stored = localStorage.getItem(CUSTOM_RULES_STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch (e) {
-    console.error('加载自定义规则失败:', e)
-  }
-  return []
-}
-
-/**
- * 保存自定义规则到 localStorage
- */
-function saveCustomRulesToStorage(rules) {
-  try {
-    localStorage.setItem(CUSTOM_RULES_STORAGE_KEY, JSON.stringify(rules))
-  } catch (e) {
-    console.error('保存自定义规则失败:', e)
-  }
-}
-
-/**
- * 从 localStorage 加载内置规则配置
- */
-function loadBuiltinRulesConfigFromStorage() {
-  try {
-    const stored = localStorage.getItem(BUILTIN_RULES_CONFIG_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch (e) {
-    console.error('加载内置规则配置失败:', e)
-  }
-  return {}
-}
-
-/**
- * 保存内置规则配置到 localStorage
- */
-function saveBuiltinRulesConfigToStorage(config) {
-  try {
-    localStorage.setItem(BUILTIN_RULES_CONFIG_KEY, JSON.stringify(config))
-  } catch (e) {
-    console.error('保存内置规则配置失败:', e)
-  }
-}
-
-/**
- * 脱敏规则类型枚举
- */
-export const RuleType = {
-  ID_CARD: 'id_card',           // 身份证号
-  PHONE: 'phone',               // 手机号
-  BANK_CARD: 'bank_card',       // 银行卡号
-  PASSPORT: 'passport',         // 护照号
-  CREDIT_CODE: 'credit_code',   // 统一社会信用代码
-  EMAIL: 'email',               // 邮箱
-  LICENSE_PLATE: 'license_plate', // 车牌号
-  IPV4: 'ipv4',                 // IPv4地址
-  IPV6: 'ipv6',                 // IPv6地址
-  MAC: 'mac',                   // MAC地址
-  API_KEY: 'api_key',           // JSON密钥
-  AMOUNT: 'amount',             // 金额
-  DATE: 'date',                 // 日期
-  URL: 'url',                   // URL
-  TELEPHONE: 'telephone',       // 电话号码
-  CUSTOM: 'custom'              // 自定义规则
-}
-
-/**
- * 自定义规则模式枚举
- */
-export const RuleMode = {
-  REGEX: 'regex',               // 正则表达式模式
-  KEYWORD: 'keyword'            // 关键字替换模式
-}
-
-/**
- * 脱敏策略类型枚举
- */
-export const StrategyType = {
-  FULL_MASK: 'full_mask',       // 完全隐藏
-  PARTIAL_MASK: 'partial_mask', // 部分掩码
-  FAKE_DATA: 'fake_data',       // 假数据替换
-  REVERSIBLE: 'reversible',     // 可逆加密
-  HASH: 'hash',                 // 哈希脱敏
-  CUSTOM: 'custom'              // 自定义替换
-}
-
-/**
- * 内置规则定义
- */
+// 内置规则定义
 const builtinRules = [
   {
-    id: 'rule_id_card',
+    id: 'phone',
+    name: '手机号码',
+    type: 'phone',
+    pattern: '(?:(?:\\+|00)86)?1[3-9]\\d{9}',
+    description: '检测中国大陆手机号码',
+    enabled: true,
+    strategy: 'partial_mask',
+    strategyConfig: { keepStart: 3, keepEnd: 4, maskChar: '*' },
+    needLuhnCheck: false,
+    mode: 'regex'
+  },
+  {
+    id: 'id_card',
     name: '身份证号',
-    type: RuleType.ID_CARD,
-    pattern: '\\d{17}[\\dXx]',
-    description: '18位身份证号码',
+    type: 'id_card',
+    pattern: '[1-9]\\d{5}(?:18|19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]',
+    description: '检测18位身份证号码',
     enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 6, keepEnd: 4 }
+    strategy: 'partial_mask',
+    strategyConfig: { keepStart: 6, keepEnd: 4, maskChar: '*' },
+    needLuhnCheck: false,
+    mode: 'regex'
   },
   {
-    id: 'rule_phone',
-    name: '手机号',
-    type: RuleType.PHONE,
-    pattern: '1[3-9]\\d{9}',
-    description: '中国大陆手机号码',
-    enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 3, keepEnd: 4 }
-  },
-  {
-    id: 'rule_bank_card',
+    id: 'bank_card',
     name: '银行卡号',
-    type: RuleType.BANK_CARD,
+    type: 'bank_card',
     pattern: '\\d{16,19}',
-    description: '银行卡号（带Luhn校验）',
+    description: '检测银行卡号（需通过Luhn校验）',
     enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 4, keepEnd: 4 },
-    needLuhnCheck: true
+    strategy: 'partial_mask',
+    strategyConfig: { keepStart: 4, keepEnd: 4, maskChar: '*' },
+    needLuhnCheck: true,
+    mode: 'regex'
   },
   {
-    id: 'rule_passport',
-    name: '护照号',
-    type: RuleType.PASSPORT,
-    pattern: '[A-Z]\\d{8}',
-    description: '中国护照号码',
+    id: 'email',
+    name: '电子邮箱',
+    type: 'email',
+    pattern: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}',
+    description: '检测电子邮箱地址',
     enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 1, keepEnd: 3 }
+    strategy: 'partial_mask',
+    strategyConfig: { keepStart: 2, keepEnd: 0, maskChar: '*' },
+    needLuhnCheck: false,
+    mode: 'regex'
   },
   {
-    id: 'rule_credit_code',
-    name: '统一社会信用代码',
-    type: RuleType.CREDIT_CODE,
-    pattern: '[0-9A-Z]{18}',
-    description: '18位统一社会信用代码',
-    enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 6, keepEnd: 4 }
-  },
-  {
-    id: 'rule_email',
-    name: '邮箱',
-    type: RuleType.EMAIL,
-    pattern: '[\\w.-]+@[\\w.-]+\\.\\w+',
-    description: '电子邮箱地址',
-    enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 2, keepEnd: 0 }
-  },
-  {
-    id: 'rule_license_plate',
-    name: '车牌号',
-    type: RuleType.LICENSE_PLATE,
-    pattern: '[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-Z0-9]{5,6}',
-    description: '中国车牌号码',
-    enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 1, keepEnd: 2 }
-  },
-  {
-    id: 'rule_ipv4',
+    id: 'ipv4',
     name: 'IPv4地址',
-    type: RuleType.IPV4,
-    pattern: '\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}',
-    description: 'IPv4网络地址',
+    type: 'ipv4',
+    pattern: '(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)',
+    description: '检测IPv4地址',
     enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 0, keepEnd: 0 }
+    strategy: 'full_mask',
+    strategyConfig: { keepStart: 0, keepEnd: 0, maskChar: '*' },
+    needLuhnCheck: false,
+    mode: 'regex'
   },
   {
-    id: 'rule_ipv6',
-    name: 'IPv6地址',
-    type: RuleType.IPV6,
-    pattern: '([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}',
-    description: 'IPv6网络地址',
-    enabled: true,
-    strategy: StrategyType.FULL_MASK
-  },
-  {
-    id: 'rule_mac',
-    name: 'MAC地址',
-    type: RuleType.MAC,
-    pattern: '([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}',
-    description: '设备MAC地址',
-    enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 0, keepEnd: 2 }
-  },
-  {
-    id: 'rule_api_key',
-    name: 'JSON密钥',
-    type: RuleType.API_KEY,
-    pattern: '"(api[_-]?key|token|secret|password)":\\s*"[^"]+"',
-    description: 'API密钥、Token等敏感配置',
-    enabled: true,
-    strategy: StrategyType.FULL_MASK
-  },
-  {
-    id: 'rule_amount',
-    name: '金额',
-    type: RuleType.AMOUNT,
-    pattern: '[\\d,]+\\.?\\d*\\s*(元|万元|亿元|¥|\\$)',
-    description: '金额数值',
-    enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 0, keepEnd: 1 }
-  },
-  {
-    id: 'rule_date',
-    name: '日期',
-    type: RuleType.DATE,
-    pattern: '\\d{4}[-/年]\\d{1,2}[-/月]\\d{1,2}日?',
-    description: '日期格式',
-    enabled: false, // 日期通常不需要脱敏
-    strategy: StrategyType.PARTIAL_MASK
-  },
-  {
-    id: 'rule_url',
-    name: 'URL',
-    type: RuleType.URL,
-    pattern: 'https?://[^\\s]+',
-    description: '网页链接',
+    id: 'credit_card',
+    name: '信用卡号',
+    type: 'credit_card',
+    pattern: '(?:\\d{4}[-\\s]?){3}\\d{4}',
+    description: '检测信用卡号',
     enabled: false,
-    strategy: StrategyType.PARTIAL_MASK
+    strategy: 'partial_mask',
+    strategyConfig: { keepStart: 4, keepEnd: 4, maskChar: '*' },
+    needLuhnCheck: true,
+    mode: 'regex'
   },
   {
-    id: 'rule_telephone',
-    name: '电话号码',
-    type: RuleType.TELEPHONE,
-    pattern: '0\\d{2,3}-?\\d{7,8}',
-    description: '固定电话号码',
-    enabled: true,
-    strategy: StrategyType.PARTIAL_MASK,
-    strategyConfig: { keepStart: 3, keepEnd: 3 }
+    id: 'passport',
+    name: '护照号码',
+    type: 'passport',
+    pattern: '[EeGg]\\d{8}',
+    description: '检测中国护照号码',
+    enabled: false,
+    strategy: 'full_mask',
+    strategyConfig: { keepStart: 0, keepEnd: 0, maskChar: '*' },
+    needLuhnCheck: false,
+    mode: 'regex'
+  },
+  {
+    id: 'license_plate',
+    name: '车牌号',
+    type: 'license_plate',
+    pattern: '[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9挂学警港澳]',
+    description: '检测中国车牌号',
+    enabled: false,
+    strategy: 'partial_mask',
+    strategyConfig: { keepStart: 1, keepEnd: 1, maskChar: '*' },
+    needLuhnCheck: false,
+    mode: 'regex'
   }
 ]
 
 /**
- * 规则状态管理 Store
- * 管理内置规则和自定义规则
+ * 规则管理 Store
  */
 export const useRulesStore = defineStore('rules', () => {
-  // 内置规则列表 - 从 localStorage 加载配置
-  const savedBuiltinConfig = loadBuiltinRulesConfigFromStorage()
-  const builtinRulesList = ref(builtinRules.map(rule => {
-    const savedConfig = savedBuiltinConfig[rule.id]
-    if (savedConfig) {
-      return {
-        ...rule,
-        enabled: savedConfig.enabled ?? rule.enabled,
-        strategy: savedConfig.strategy ?? rule.strategy,
-        strategyConfig: savedConfig.strategyConfig ?? rule.strategyConfig
-      }
-    }
-    return rule
+  // 内置规则列表
+  const builtinRulesList = ref(JSON.parse(JSON.stringify(builtinRules)))
+  
+  // 自定义规则列表
+  const customRules = ref([])
+  
+  // 所有规则
+  const allRules = computed(() => [
+    ...builtinRulesList.value,
+    ...customRules.value
+  ])
+  
+  // 已启用的规则
+  const enabledRules = computed(() => 
+    allRules.value.filter(r => r.enabled)
+  )
+  
+  // 规则统计
+  const ruleStats = computed(() => ({
+    builtinTotal: builtinRulesList.value.length,
+    builtinEnabled: builtinRulesList.value.filter(r => r.enabled).length,
+    customTotal: customRules.value.length,
+    customEnabled: customRules.value.filter(r => r.enabled).length
   }))
   
-  // 自定义规则列表 - 从 localStorage 初始化
-  const customRules = ref(loadCustomRulesFromStorage())
-  
-  // 规则优先级顺序
-  const rulePriority = ref([])
-
-  // 监听 customRules 变化，自动保存到 localStorage
-  watch(
-    customRules,
-    (newRules) => {
-      saveCustomRulesToStorage(newRules)
-    },
-    { deep: true }
-  )
-  
-  // 监听 builtinRulesList 变化，自动保存配置到 localStorage
-  watch(
-    builtinRulesList,
-    (newRules) => {
-      const config = {}
-      newRules.forEach(rule => {
-        config[rule.id] = {
-          enabled: rule.enabled,
-          strategy: rule.strategy,
-          strategyConfig: rule.strategyConfig
-        }
-      })
-      saveBuiltinRulesConfigToStorage(config)
-    },
-    { deep: true }
-  )
-
-  // 计算属性：所有启用的规则
-  const enabledRules = computed(() => {
-    return [
-      ...builtinRulesList.value.filter(r => r.enabled),
-      ...customRules.value.filter(r => r.enabled)
-    ].sort((a, b) => {
-      const aIndex = rulePriority.value.indexOf(a.id)
-      const bIndex = rulePriority.value.indexOf(b.id)
-      if (aIndex === -1 && bIndex === -1) return 0
-      if (aIndex === -1) return 1
-      if (bIndex === -1) return -1
-      return aIndex - bIndex
-    })
-  })
-
-  // 计算属性：规则统计
-  const ruleStats = computed(() => {
-    const builtin = builtinRulesList.value.filter(r => r.enabled).length
-    const custom = customRules.value.filter(r => r.enabled).length
-    return {
-      builtinEnabled: builtin,
-      builtinTotal: builtinRulesList.value.length,
-      customEnabled: custom,
-      customTotal: customRules.value.length,
-      totalEnabled: builtin + custom
-    }
-  })
-
   /**
    * 切换规则启用状态
-   * @param {string} ruleId - 规则ID
    */
   function toggleRule(ruleId) {
-    const builtinRule = builtinRulesList.value.find(r => r.id === ruleId)
-    if (builtinRule) {
-      builtinRule.enabled = !builtinRule.enabled
+    const rule = allRules.value.find(r => r.id === ruleId)
+    if (rule) {
+      rule.enabled = !rule.enabled
+      saveToStorage()
+    }
+  }
+  
+  /**
+   * 更新规则
+   */
+  function updateRule(ruleId, updates) {
+    // 先在内置规则中查找
+    let rule = builtinRulesList.value.find(r => r.id === ruleId)
+    if (rule) {
+      Object.assign(rule, updates)
+      saveToStorage()
       return
     }
     
-    const customRule = customRules.value.find(r => r.id === ruleId)
-    if (customRule) {
-      customRule.enabled = !customRule.enabled
-    }
-  }
-
-  /**
-   * 更新规则策略
-   * @param {string} ruleId - 规则ID
-   * @param {string} strategy - 策略类型
-   * @param {Object} config - 策略配置
-   */
-  function updateRuleStrategy(ruleId, strategy, config = {}) {
-    const rule = builtinRulesList.value.find(r => r.id === ruleId) ||
-                 customRules.value.find(r => r.id === ruleId)
+    // 再在自定义规则中查找
+    rule = customRules.value.find(r => r.id === ruleId)
     if (rule) {
-      rule.strategy = strategy
-      rule.strategyConfig = config
+      Object.assign(rule, updates)
+      saveToStorage()
     }
   }
-
+  
   /**
    * 添加自定义规则
-   * @param {Object} rule - 规则对象
    */
   function addCustomRule(rule) {
     const newRule = {
       id: `custom_${Date.now()}`,
-      name: rule.name,
-      type: RuleType.CUSTOM,
-      mode: rule.mode || 'regex', // 'regex' 或 'keyword'
-      // 正则模式
-      pattern: rule.pattern || '',
-      // 关键字模式
-      keyword: rule.keyword || '',
-      replacement: rule.replacement || '***',
-      caseSensitive: rule.caseSensitive || false,
-      // 通用字段
-      description: rule.description || '',
-      enabled: true,
-      strategy: rule.strategy || StrategyType.FULL_MASK,
-      strategyConfig: rule.strategyConfig || {},
-      createdAt: new Date().toISOString()
+      ...rule,
+      enabled: true
     }
     customRules.value.push(newRule)
+    saveToStorage()
     return newRule
   }
-
-  /**
-   * 更新自定义规则
-   * @param {string} ruleId - 规则ID
-   * @param {Object} updates - 更新内容
-   */
-  function updateCustomRule(ruleId, updates) {
-    const index = customRules.value.findIndex(r => r.id === ruleId)
-    if (index !== -1) {
-      customRules.value[index] = {
-        ...customRules.value[index],
-        ...updates,
-        updatedAt: new Date().toISOString()
-      }
-    }
-  }
-
+  
   /**
    * 删除自定义规则
-   * @param {string} ruleId - 规则ID
    */
   function deleteCustomRule(ruleId) {
     const index = customRules.value.findIndex(r => r.id === ruleId)
     if (index !== -1) {
       customRules.value.splice(index, 1)
+      saveToStorage()
     }
   }
-
+  
   /**
-   * 导入规则
-   * @param {Array} rules - 规则列表
+   * 重置所有规则到默认状态
    */
-  function importRules(rules) {
-    rules.forEach(rule => {
-      if (rule.id && rule.name && rule.pattern) {
-        // 检查是否已存在
-        const exists = customRules.value.some(r => 
-          r.name === rule.name || r.pattern === rule.pattern
-        )
-        if (!exists) {
-          addCustomRule(rule)
-        }
-      }
-    })
+  function resetRules() {
+    // 深拷贝原始规则，确保完全重置
+    builtinRulesList.value = JSON.parse(JSON.stringify(builtinRules))
+    customRules.value = []
+    saveToStorage()
+    ElMessage.success('规则已重置为默认状态')
   }
-
+  
+  /**
+   * 重置内置规则到默认状态
+   */
+  function resetBuiltinRules() {
+    builtinRulesList.value = JSON.parse(JSON.stringify(builtinRules))
+    saveToStorage()
+    ElMessage.success('内置规则已重置')
+  }
+  
   /**
    * 导出规则
-   * @returns {string} JSON字符串
    */
   function exportRules() {
-    return JSON.stringify(customRules.value, null, 2)
+    return {
+      builtin: builtinRulesList.value,
+      custom: customRules.value,
+      exportedAt: new Date().toISOString()
+    }
   }
-
+  
   /**
-   * 重置为默认规则
+   * 导入规则
    */
-  function resetToDefault() {
-    builtinRulesList.value = [...builtinRules]
-    customRules.value = []
-    rulePriority.value = []
+  function importRules(data) {
+    try {
+      // 验证数据格式
+      if (!data || typeof data !== 'object') {
+        throw new Error('无效的规则数据格式')
+      }
+      
+      // 检查是否是有效的规则文件
+      if (!data.builtin && !data.custom) {
+        throw new Error('规则文件格式不正确，缺少 builtin 或 custom 字段')
+      }
+      
+      if (data.builtin && Array.isArray(data.builtin)) {
+        builtinRulesList.value = data.builtin
+      }
+      
+      if (data.custom && Array.isArray(data.custom)) {
+        customRules.value = data.custom
+      }
+      
+      saveToStorage()
+      ElMessage.success('规则导入成功')
+      return true
+    } catch (error) {
+      ElMessage.error('规则导入失败: ' + error.message)
+      return false
+    }
   }
-
+  
+  /**
+   * 保存到本地存储
+   */
+  function saveToStorage() {
+    try {
+      localStorage.setItem('data-masker-rules', JSON.stringify({
+        builtin: builtinRulesList.value,
+        custom: customRules.value
+      }))
+    } catch (e) {
+      console.error('保存规则失败:', e)
+    }
+  }
+  
+  /**
+   * 从本地存储加载
+   */
+  function loadFromStorage() {
+    try {
+      const saved = localStorage.getItem('data-masker-rules')
+      if (saved) {
+        const data = JSON.parse(saved)
+        if (data.builtin && Array.isArray(data.builtin)) {
+          builtinRulesList.value = data.builtin
+        }
+        if (data.custom && Array.isArray(data.custom)) {
+          customRules.value = data.custom
+        }
+      }
+    } catch (e) {
+      console.error('加载规则失败:', e)
+    }
+  }
+  
+  // 初始化时加载
+  loadFromStorage()
+  
   return {
     builtinRulesList,
     customRules,
-    rulePriority,
+    allRules,
     enabledRules,
     ruleStats,
     toggleRule,
-    updateRuleStrategy,
+    updateRule,
     addCustomRule,
-    updateCustomRule,
     deleteCustomRule,
-    importRules,
+    resetRules,
+    resetBuiltinRules,
     exportRules,
-    resetToDefault
+    importRules
   }
 })

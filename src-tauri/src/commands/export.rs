@@ -9,6 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 use tauri::command;
+use tauri::Manager;
 use std::collections::HashMap;
 
 /// 导出格式
@@ -56,10 +57,14 @@ pub async fn export_result(
 
 /// 批量导出处理结果
 #[command]
-pub async fn export_all_results(results: Vec<crate::commands::mask::MaskResult>) -> Result<String, String> {
-    let output_dir = std::env::current_dir()
+pub async fn export_all_results(
+    app: tauri::AppHandle,
+    results: Vec<crate::commands::mask::MaskResult>
+) -> Result<String, String> {
+    let output_dir = app.path()
+        .app_data_dir()
         .map(|p| p.join("output"))
-        .unwrap_or_else(|_| std::path::PathBuf::from("output"));
+        .map_err(|e| format!("无法获取输出目录: {}", e))?;
     
     std::fs::create_dir_all(&output_dir)
         .map_err(|e| format!("创建输出目录失败: {}", e))?;
@@ -84,17 +89,40 @@ pub async fn export_all_results(results: Vec<crate::commands::mask::MaskResult>)
 /// 报告数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportData {
+    #[serde(default)]
     pub summary: ReportSummary,
+    #[serde(default)]
     pub sensitive_stats: HashMap<String, usize>,
+    #[serde(default)]
     pub results: Vec<ResultSummary>,
+    #[serde(default = "default_generated_at")]
     pub generated_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+fn default_generated_at() -> String {
+    chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+}
+
+impl Default for ReportData {
+    fn default() -> Self {
+        ReportData {
+            summary: ReportSummary::default(),
+            sensitive_stats: HashMap::new(),
+            results: Vec::new(),
+            generated_at: default_generated_at(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ReportSummary {
+    #[serde(default)]
     pub total_files: usize,
+    #[serde(default)]
     pub success_count: usize,
+    #[serde(default)]
     pub error_count: usize,
+    #[serde(default)]
     pub total_sensitive: usize,
 }
 
@@ -106,9 +134,40 @@ pub struct ResultSummary {
     pub processing_time: String,
 }
 
+impl Default for ResultSummary {
+    fn default() -> Self {
+        ResultSummary {
+            file_name: String::new(),
+            status: "pending".to_string(),
+            sensitive_count: 0,
+            processing_time: "0.00s".to_string(),
+        }
+    }
+}
+
 /// 导出处理报告
 #[command]
-pub async fn export_report(report_data: ReportData) -> Result<String, String> {
+pub async fn export_report(
+    app: tauri::AppHandle,
+    report_data: ReportData
+) -> Result<String, String> {
+    // 确保所有字段都有默认值
+    let report_data = ReportData {
+        summary: ReportSummary {
+            total_files: report_data.summary.total_files,
+            success_count: report_data.summary.success_count,
+            error_count: report_data.summary.error_count,
+            total_sensitive: report_data.summary.total_sensitive,
+        },
+        sensitive_stats: report_data.sensitive_stats,
+        results: report_data.results,
+        generated_at: if report_data.generated_at.is_empty() {
+            default_generated_at()
+        } else {
+            report_data.generated_at
+        },
+    };
+    
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let report_name = format!("report_{}.txt", timestamp);
     
@@ -134,10 +193,14 @@ pub async fn export_report(report_data: ReportData) -> Result<String, String> {
     
     // 敏感信息类型分布
     report.push_str("【敏感信息类型分布】\n");
-    let mut sorted_stats: Vec<_> = report_data.sensitive_stats.iter().collect();
-    sorted_stats.sort_by(|a, b| b.1.cmp(a.1));
-    for (info_type, count) in sorted_stats {
-        report.push_str(&format!("  {}: {} 处\n", info_type, count));
+    if report_data.sensitive_stats.is_empty() {
+        report.push_str("  无敏感信息\n");
+    } else {
+        let mut sorted_stats: Vec<_> = report_data.sensitive_stats.iter().collect();
+        sorted_stats.sort_by(|a, b| b.1.cmp(a.1));
+        for (info_type, count) in sorted_stats {
+            report.push_str(&format!("  {}: {} 处\n", info_type, count));
+        }
     }
     report.push_str("\n");
     
@@ -146,11 +209,15 @@ pub async fn export_report(report_data: ReportData) -> Result<String, String> {
     report.push_str(&"-".repeat(60));
     report.push_str("\n");
     
-    for result in report_data.results {
-        report.push_str(&format!("\n文件: {}\n", result.file_name));
-        report.push_str(&format!("  状态: {}\n", result.status));
-        report.push_str(&format!("  敏感信息: {} 处\n", result.sensitive_count));
-        report.push_str(&format!("  耗时: {}\n", result.processing_time));
+    if report_data.results.is_empty() {
+        report.push_str("  无处理记录\n");
+    } else {
+        for result in report_data.results {
+            report.push_str(&format!("\n文件: {}\n", result.file_name));
+            report.push_str(&format!("  状态: {}\n", result.status));
+            report.push_str(&format!("  敏感信息: {} 处\n", result.sensitive_count));
+            report.push_str(&format!("  耗时: {}\n", result.processing_time));
+        }
     }
     
     report.push_str("\n");
@@ -164,9 +231,10 @@ pub async fn export_report(report_data: ReportData) -> Result<String, String> {
     report.push_str("\n");
     
     // 保存报告文件
-    let output_dir = std::env::current_dir()
+    let output_dir = app.path()
+        .app_data_dir()
         .map(|p| p.join("output"))
-        .unwrap_or_else(|_| std::path::PathBuf::from("output"));
+        .map_err(|e| format!("无法获取输出目录: {}", e))?;
     
     std::fs::create_dir_all(&output_dir)
         .map_err(|e| format!("创建输出目录失败: {}", e))?;

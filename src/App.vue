@@ -45,6 +45,11 @@
         
         <el-divider />
         
+        <el-menu-item index="/ip-mapping">
+          <el-icon><Connection /></el-icon>
+          <span>IP映射</span>
+        </el-menu-item>
+        
         <el-menu-item index="/settings">
           <el-icon><Tools /></el-icon>
           <span>设置</span>
@@ -72,6 +77,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { Connection } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const activeMenu = computed(() => route.path)

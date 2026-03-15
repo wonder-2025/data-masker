@@ -98,3 +98,66 @@ pub async fn generate_preview(
         },
     })
 }
+
+/// 批量预览文件
+#[command]
+pub async fn batch_preview(
+    file_paths: Vec<String>,
+    rules: Vec<crate::commands::mask::Rule>,
+) -> Result<Vec<(String, PreviewResult)>, String> {
+    let mut results = Vec::new();
+    
+    for file_path in file_paths {
+        match generate_preview(file_path.clone(), rules.clone()).await {
+            Ok(preview) => {
+                results.push((file_path, preview));
+            }
+            Err(e) => {
+                tracing::error!("预览文件失败: {} - {}", file_path, e);
+                // 即使预览失败，也返回一个空结果，而不是跳过
+                results.push((file_path, PreviewResult {
+                    original: String::new(),
+                    masked: String::new(),
+                    sensitive_info: vec![],
+                    stats: PreviewStats {
+                        total_sensitive: 0,
+                        by_type: HashMap::new(),
+                    },
+                }));
+            }
+        }
+    }
+    
+    Ok(results)
+}
+
+/// 确认预览（检查是否可以继续处理）
+#[command]
+pub async fn confirm_preview(
+    file_path: String,
+    rules: Vec<crate::commands::mask::Rule>,
+) -> Result<bool, String> {
+    // 检查文件是否存在
+    if !std::path::Path::new(&file_path).exists() {
+        return Err(format!("文件不存在: {}", file_path));
+    }
+    
+    // 检查文件格式是否支持
+    let extension = std::path::Path::new(&file_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    
+    // 不支持的格式
+    if extension == "doc" {
+        return Err("不支持旧版 Word 格式 (.doc)，请将文件转换为 .docx 格式后重试".to_string());
+    }
+    
+    // 检查规则是否有效
+    if rules.is_empty() {
+        return Err("请至少启用一条脱敏规则".to_string());
+    }
+    
+    Ok(true)
+}

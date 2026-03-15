@@ -265,6 +265,7 @@ import { useRulesStore } from '@/stores/rules'
 import { useFilesStore } from '@/stores/files'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import RuleCard from '@/components/RuleCard.vue'
+import { regexValidator } from '@/utils/regexValidator'
 
 const router = useRouter()
 const rulesStore = useRulesStore()
@@ -428,6 +429,49 @@ async function saveRule() {
   try {
     await ruleFormRef.value.validate()
     
+    // 如果是正则表达式模式，进行安全验证
+    if (ruleForm.mode === 'regex' && ruleForm.pattern) {
+      const validation = regexValidator.validate(ruleForm.pattern)
+      
+      if (!validation.isValid) {
+        ElMessage.error(validation.errors.join('; '))
+        return
+      }
+      
+      // 显示警告信息
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach(warning => {
+          ElMessage.warning(warning)
+        })
+        
+        // 高复杂度需要用户确认
+        if (validation.complexity === 'high') {
+          try {
+            await ElMessageBox.confirm(
+              '正则表达式复杂度较高，可能影响性能。是否继续？',
+              '性能警告',
+              {
+                confirmButtonText: '继续保存',
+                cancelButtonText: '取消',
+                type: 'warning'
+              }
+            )
+          } catch {
+            return  // 用户取消
+          }
+        }
+      }
+      
+      // 显示优化建议
+      const suggestions = regexValidator.getSuggestions(ruleForm.pattern)
+      if (suggestions.length > 0 && !isEditMode.value) {
+        ElMessage.info({
+          message: '优化建议: ' + suggestions[0],
+          duration: 5000
+        })
+      }
+    }
+    
     const ruleData = {
       name: ruleForm.name,
       mode: ruleForm.mode,
@@ -474,7 +518,7 @@ function deleteRule(ruleId) {
 }
 
 // 导入规则
-function importRules() {
+async function importRules() {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '.json'
@@ -483,14 +527,27 @@ function importRules() {
     if (file) {
       try {
         const text = await file.text()
-        const rules = JSON.parse(text)
-        if (Array.isArray(rules)) {
-          rulesStore.importRules(rules)
-          ElMessage.success(`成功导入 ${rules.length} 条规则`)
-        } else {
-          ElMessage.error('规则文件格式不正确')
+        
+        // 验证是否是有效的 JSON
+        let data
+        try {
+          data = JSON.parse(text)
+        } catch (parseError) {
+          throw new Error('文件不是有效的 JSON 格式，请确认选择的是规则导出文件')
+        }
+        
+        // 检查数据格式
+        if (!data || typeof data !== 'object') {
+          throw new Error('规则文件格式不正确')
+        }
+        
+        // 调用 store 的导入方法
+        const success = rulesStore.importRules(data)
+        if (success) {
+          ElMessage.success('规则导入成功')
         }
       } catch (error) {
+        console.error('导入规则失败:', error)
         ElMessage.error('导入规则失败: ' + error.message)
       }
     }
@@ -500,26 +557,34 @@ function importRules() {
 
 // 导出规则
 function exportRules() {
-  const json = rulesStore.exportRules()
-  const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `data-masker-rules-${Date.now()}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-  ElMessage.success('规则已导出')
+  try {
+    const data = rulesStore.exportRules()
+    const jsonStr = JSON.stringify(data, null, 2)
+    const blob = new Blob([jsonStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const timestamp = new Date().toISOString().slice(0, 10)
+    a.download = `data-masker-rules-${timestamp}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success(`规则已导出到: ${a.download}`)
+  } catch (error) {
+    console.error('导出规则失败:', error)
+    ElMessage.error('导出规则失败: ' + error.message)
+  }
 }
 
 // 重置规则
 function resetRules() {
-  ElMessageBox.confirm('确定要重置所有规则为默认设置吗？', '确认重置', {
+  ElMessageBox.confirm('确定要重置所有规则为默认设置吗？自定义规则将被清除。', '确认重置', {
     confirmButtonText: '重置',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    rulesStore.resetToDefault()
-    ElMessage.success('规则已重置')
+    rulesStore.resetRules()
   }).catch(() => {})
 }
 

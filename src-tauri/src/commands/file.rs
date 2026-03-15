@@ -34,6 +34,122 @@ pub struct FileContent {
     pub line_count: usize,
 }
 
+/// 安全验证错误
+#[derive(Debug)]
+pub enum SecurityError {
+    PathTraversal,
+    InvalidPath,
+    ForbiddenExtension,
+    FileTooLarge,
+}
+
+impl std::fmt::Display for SecurityError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SecurityError::PathTraversal => write!(f, "路径遍历攻击检测"),
+            SecurityError::InvalidPath => write!(f, "无效的文件路径"),
+            SecurityError::ForbiddenExtension => write!(f, "禁止访问的文件类型"),
+            SecurityError::FileTooLarge => write!(f, "文件大小超过限制"),
+        }
+    }
+}
+
+/// 验证路径安全性
+/// 防止路径遍历攻击
+pub fn validate_path(path: &PathBuf, app_handle: &tauri::AppHandle) -> Result<PathBuf, SecurityError> {
+    // 1. 获取规范路径（解析符号链接和 ..）
+    let canonical_path = path.canonicalize()
+        .map_err(|_| SecurityError::InvalidPath)?;
+    
+    // 2. 获取允许的基目录
+    let app_data_dir = app_handle.path()
+        .app_data_dir()
+        .map_err(|_| SecurityError::InvalidPath)?;
+    
+    let output_dir = app_data_dir.join("output");
+    let temp_dir = app_data_dir.join("temp");
+    
+    // 3. 检查路径是否在允许的目录内
+    let is_allowed = canonical_path.starts_with(&output_dir) 
+        || canonical_path.starts_with(&temp_dir)
+        || canonical_path.starts_with(std::env::current_dir().unwrap_or_default());
+    
+    if !is_allowed {
+        // 记录安全事件
+        tracing::warn!(
+            "路径遍历尝试被阻止: {:?} (规范路径: {:?})",
+            path, canonical_path
+        );
+        return Err(SecurityError::PathTraversal);
+    }
+    
+    // 4. 检查文件扩展名
+    if let Some(ext) = canonical_path.extension().and_then(|e| e.to_str()) {
+        let ext_lower = ext.to_lowercase();
+        // 黑名单扩展名（可执行文件等）
+        let forbidden_extensions = ["exe", "bat", "cmd", "sh", "ps1", "vbs", "js", "jar"];
+        if forbidden_extensions.contains(&ext_lower.as_str()) {
+            return Err(SecurityError::ForbiddenExtension);
+        }
+    }
+    
+    Ok(canonical_path)
+}
+
+/// 验证用户输入的路径（用于文件读取）
+pub fn validate_user_path(path: &str) -> Result<PathBuf, String> {
+    let file_path = PathBuf::from(path);
+    
+    // 基本检查
+    if !file_path.exists() {
+        return Err("文件不存在".to_string());
+    }
+    
+    // 检查路径遍历模式
+    let path_str = path.to_lowercase();
+    let dangerous_patterns = ["../", "..\\", "~", "$(", "${", "`", "|", ";", "&", "<", ">"];
+    
+    for pattern in dangerous_patterns {
+        if path_str.contains(pattern) {
+            tracing::warn!("检测到危险的路径模式: {} in {}", pattern, path);
+            return Err("路径包含不安全的字符".to_string());
+        }
+    }
+    
+    // 检查扩展名
+    if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
+        let ext_lower = ext.to_lowercase();
+        let forbidden_extensions = ["exe", "bat", "cmd", "sh", "ps1", "vbs", "js", "jar"];
+        if forbidden_extensions.contains(&ext_lower.as_str()) {
+            return Err("不支持该文件类型".to_string());
+        }
+    }
+    
+    Ok(file_path)
+}
+
+/// 转义路径用于命令行
+pub fn escape_path_for_command(path: &str) -> String {
+    // 移除或转义危险字符
+    let mut escaped = String::new();
+    for c in path.chars() {
+        match c {
+            // 危险字符：移除或替换
+            '|' | '&' | ';' | '<' | '>' | '`' | '$' | '(' | ')' => {
+                // 跳过这些字符
+            }
+            // 引号和空格：转义
+            '"' | ' ' => {
+                escaped.push('\\');
+                escaped.push(c);
+            }
+            // 其他字符：保留
+            _ => escaped.push(c),
+        }
+    }
+    escaped
+}
+
 /// 选择文件对话框
 #[command]
 pub async fn select_files(app: tauri::AppHandle) -> Result<Vec<FileInfo>, String> {
@@ -43,8 +159,9 @@ pub async fn select_files(app: tauri::AppHandle) -> Result<Vec<FileInfo>, String
     let paths = app.dialog()
         .file()
         .add_filter("支持的文件", &[
-            "pdf", "docx", "doc", "xlsx", "xls", 
+            "pdf", "docx", "xlsx", "xls", 
             "txt", "md", "csv", "json", "xml", "pptx"
+            // 注意: 移除了 .doc 格式，因为不支持旧版 Word 格式
         ])
         .blocking_pick_files();
     
@@ -54,6 +171,24 @@ pub async fn select_files(app: tauri::AppHandle) -> Result<Vec<FileInfo>, String
                 .filter_map(|path| {
                     // 正确处理 FilePath 枚举
                     if let FilePath::Path(p) = path {
+                        // 验证路径安全性
+                        if let Err(e) = validate_user_path(&p.to_string_lossy()) {
+                            tracing::warn!("文件路径验证失败: {}", e);
+                            return None;
+                        }
+                        
+                        // 检查文件格式是否支持
+                        let ext = p.extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or("")
+                            .to_lowercase();
+                        
+                        // 不支持的格式给出提示
+                        if ext == "doc" {
+                            tracing::warn!("不支持旧版 Word 格式 (.doc)，请转换为 .docx 格式: {:?}", p);
+                            return None;
+                        }
+                        
                         create_file_info(p)
                     } else {
                         None // 忽略 URL 类型
@@ -91,17 +226,19 @@ pub async fn select_directory(app: tauri::AppHandle) -> Result<String, String> {
 /// 读取文件内容（用于预览）
 #[command]
 pub async fn read_file_content(path: String) -> Result<FileContent, String> {
-    let file_path = PathBuf::from(&path);
-    
-    if !file_path.exists() {
-        return Err(format!("文件不存在: {}", path));
-    }
+    // 验证路径安全性
+    let file_path = validate_user_path(&path)?;
     
     // 根据文件类型读取
     let extension = file_path.extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
+    
+    // 检查不支持的格式
+    if extension == "doc" {
+        return Err("不支持旧版 Word 格式 (.doc)，请将文件转换为 .docx 格式后重试".to_string());
+    }
     
     let content = match extension.as_str() {
         "txt" | "md" | "json" | "xml" | "csv" => {
@@ -110,8 +247,14 @@ pub async fn read_file_content(path: String) -> Result<FileContent, String> {
         "pdf" => {
             read_pdf_preview(&file_path)?
         }
-        "docx" | "xlsx" | "pptx" => {
-            read_office_preview(&file_path, &extension)?
+        "docx" => {
+            read_docx_preview(&file_path)?
+        }
+        "xlsx" | "xls" => {
+            read_xlsx_preview(&file_path)?
+        }
+        "pptx" => {
+            read_pptx_preview(&file_path)?
         }
         _ => {
             return Err(format!("不支持的文件类型: {}", extension));
@@ -145,16 +288,20 @@ pub async fn read_file_preview(path: String) -> Result<String, String> {
 
 /// 保存文件
 #[command]
-pub async fn save_file(path: String, content: Vec<u8>) -> Result<(), String> {
+pub async fn save_file(path: String, content: Vec<u8>, app: tauri::AppHandle) -> Result<(), String> {
     let file_path = PathBuf::from(&path);
     
+    // 验证路径安全性
+    let canonical_path = validate_path(&file_path, &app)
+        .map_err(|e| format!("路径验证失败: {}", e))?;
+    
     // 确保父目录存在
-    if let Some(parent) = file_path.parent() {
+    if let Some(parent) = canonical_path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("创建目录失败: {}", e))?;
     }
     
-    std::fs::write(&file_path, content)
+    std::fs::write(&canonical_path, content)
         .map_err(|e| format!("写入文件失败: {}", e))?;
     
     Ok(())
@@ -163,19 +310,20 @@ pub async fn save_file(path: String, content: Vec<u8>) -> Result<(), String> {
 /// 打开文件所在目录
 #[command]
 pub async fn open_file_location(path: String) -> Result<(), String> {
-    let file_path = PathBuf::from(&path);
-    
-    // 验证路径是否存在
-    if !file_path.exists() {
-        return Err(format!("文件不存在: {}", path));
-    }
+    // 验证路径安全性
+    let file_path = validate_user_path(&path)?;
     
     // 获取规范路径，防止路径遍历攻击
     let canonical_path = file_path.canonicalize()
         .map_err(|e| format!("路径解析失败: {}", e))?;
     
-    // 转换为字符串，确保安全
-    let path_str = canonical_path.to_string_lossy().into_owned();
+    // 转换为字符串并转义危险字符
+    let path_str = escape_path_for_command(&canonical_path.to_string_lossy());
+    
+    // 验证转义后的路径不为空
+    if path_str.is_empty() {
+        return Err("无效的文件路径".to_string());
+    }
     
     #[cfg(target_os = "windows")]
     {
@@ -196,8 +344,9 @@ pub async fn open_file_location(path: String) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         if let Some(parent) = canonical_path.parent() {
+            let parent_str = escape_path_for_command(&parent.to_string_lossy());
             std::process::Command::new("xdg-open")
-                .arg(parent)
+                .arg(&parent_str)
                 .spawn()
                 .map_err(|e| format!("打开目录失败: {}", e))?;
         }
@@ -314,18 +463,59 @@ fn read_pdf_preview(path: &PathBuf) -> Result<String, String> {
         .map_err(|e| format!("读取PDF失败: {}", e))?;
     
     match pdf_extract::extract_text_from_mem(&bytes) {
-        Ok(text) => Ok(text),
+        Ok(text) if !text.is_empty() => Ok(text),
+        Ok(_) => {
+            // 如果提取的文本为空，尝试使用 lopdf
+            match lopdf::Document::load_mem(&bytes) {
+                Ok(doc) => {
+                    let mut text = String::new();
+                    let pages: Vec<(u32, lopdf::ObjectId)> = doc.get_pages().into_iter().collect();
+                    
+                    for (_page_num, page_id) in pages {
+                        if let Ok(page) = doc.get_object(page_id) {
+                            if let lopdf::Object::Dictionary(dict) = page {
+                                if let Ok(contents) = dict.get(b"Contents") {
+                                    match contents {
+                                        lopdf::Object::Reference(stream_id) => {
+                                            if let Ok(stream_obj) = doc.get_object(*stream_id) {
+                                                if let lopdf::Object::Stream(s) = stream_obj {
+                                                    if let Ok(content) = s.decompressed_content() {
+                                                        text.push_str(&String::from_utf8_lossy(&content));
+                                                        text.push('\n');
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        lopdf::Object::Array(arr) => {
+                                            for obj in arr {
+                                                if let lopdf::Object::Reference(stream_id) = obj {
+                                                    if let Ok(stream_obj) = doc.get_object(*stream_id) {
+                                                        if let lopdf::Object::Stream(s) = stream_obj {
+                                                            if let Ok(content) = s.decompressed_content() {
+                                                                text.push_str(&String::from_utf8_lossy(&content));
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if text.is_empty() {
+                        Err("PDF 文件可能包含扫描图像或加密内容，无法提取文本".to_string())
+                    } else {
+                        Ok(text)
+                    }
+                }
+                Err(e) => Err(format!("解析PDF失败: {}", e)),
+            }
+        }
         Err(e) => Err(format!("解析PDF失败: {}", e)),
-    }
-}
-
-/// 读取 Office 文件预览
-fn read_office_preview(path: &PathBuf, extension: &str) -> Result<String, String> {
-    match extension {
-        "docx" => read_docx_preview(path),
-        "xlsx" => read_xlsx_preview(path),
-        "pptx" => read_pptx_preview(path),
-        _ => Err(format!("不支持的文件类型: {}", extension)),
     }
 }
 
@@ -336,8 +526,9 @@ fn read_docx_preview(path: &PathBuf) -> Result<String, String> {
     
     let file = std::fs::File::open(path)
         .map_err(|e| format!("打开文件失败: {}", e))?;
+    
     let mut archive = ZipArchive::new(file)
-        .map_err(|e| format!("解析ZIP失败: {}", e))?;
+        .map_err(|e| format!("解析ZIP失败: {}，请确认文件是有效的 .docx 格式", e))?;
     
     let mut content = String::new();
     
@@ -349,7 +540,11 @@ fn read_docx_preview(path: &PathBuf) -> Result<String, String> {
         content = extract_text_from_docx_xml(&xml_content);
     }
     
-    Ok(content)
+    if content.is_empty() {
+        Err("Word 文档内容为空或无法解析".to_string())
+    } else {
+        Ok(content)
+    }
 }
 
 /// 从 Word XML 中提取文本
@@ -369,43 +564,120 @@ fn extract_text_from_docx_xml(xml: &str) -> String {
 fn read_xlsx_preview(path: &PathBuf) -> Result<String, String> {
     use calamine::Reader;
     
-    let mut workbook: calamine::Xlsx<_> = calamine::open_workbook(path)
-        .map_err(|e| format!("打开Excel失败: {}", e))?;
+    // 检查文件是否存在
+    if !path.exists() {
+        return Err(format!("文件不存在: {:?}", path));
+    }
     
+    let mut workbook: calamine::Xlsx<_> = match calamine::open_workbook(path) {
+        Ok(wb) => wb,
+        Err(e) => {
+            // 尝试使用 xls 格式
+            if path.extension().map(|e| e == "xls").unwrap_or(false) {
+                let mut xls_workbook: calamine::Xls<_> = calamine::open_workbook(path)
+                    .map_err(|e| format!("打开Excel失败: {}", e))?;
+                return read_excel_workbook(&mut xls_workbook);
+            }
+            return Err(format!("打开Excel失败: {}", e));
+        }
+    };
+    
+    read_excel_workbook(&mut workbook)
+}
+
+/// 读取 Excel 工作簿内容
+fn read_excel_workbook<R: std::io::Read + std::io::Seek>(workbook: &mut impl calamine::Reader<R>) -> Result<String, String> {
+    let sheets = workbook.sheet_names().to_vec();
     let mut content = String::new();
     
-    let sheets = workbook.sheet_names().to_vec();
     for sheet_name in sheets {
         if let Some(Ok(range)) = workbook.worksheet_range(&sheet_name) {
             for row in range.rows() {
                 let cells: Vec<String> = row.iter()
                     .map(|cell| cell.to_string())
                     .collect();
-                content.push_str(&cells.join("\t"));
-                content.push('\n');
+                if !cells.iter().all(|c| c.is_empty()) {
+                    content.push_str(&cells.join("\t"));
+                    content.push('\n');
+                }
             }
         }
     }
     
-    Ok(content)
+    if content.is_empty() {
+        Ok("[Excel 文件为空或无法读取内容]".to_string())
+    } else {
+        Ok(content)
+    }
 }
 
 /// 读取 PowerPoint 文件预览
-fn read_pptx_preview(_path: &PathBuf) -> Result<String, String> {
-    Ok("[PowerPoint 文件预览暂不支持]".to_string())
+fn read_pptx_preview(path: &PathBuf) -> Result<String, String> {
+    use std::io::Read;
+    use zip::ZipArchive;
+    
+    let file = std::fs::File::open(path)
+        .map_err(|e| format!("打开文件失败: {}", e))?;
+    
+    let mut archive = ZipArchive::new(file)
+        .map_err(|e| format!("解析ZIP失败: {}", e))?;
+    
+    let mut content = String::new();
+    
+    // 遍历所有幻灯片
+    for i in 0..archive.len() {
+        if let Ok(mut file) = archive.by_index(i) {
+            let name = file.name().to_string();
+            if name.starts_with("ppt/slides/slide") && name.ends_with(".xml") {
+                let mut xml_content = String::new();
+                file.read_to_string(&mut xml_content)
+                    .ok();
+                
+                // 提取文本
+                let slide_text = extract_text_from_pptx_xml(&xml_content);
+                if !slide_text.is_empty() {
+                    content.push_str(&format!("=== 幻灯片 {} ===\n", i + 1));
+                    content.push_str(&slide_text);
+                    content.push_str("\n\n");
+                }
+            }
+        }
+    }
+    
+    if content.is_empty() {
+        Ok("[PowerPoint 文件内容为空或无法解析]".to_string())
+    } else {
+        Ok(content)
+    }
+}
+
+/// 从 PowerPoint XML 中提取文本
+fn extract_text_from_pptx_xml(xml: &str) -> String {
+    use regex::Regex;
+    
+    // 匹配 <a:t> 标签中的文本
+    let re = Regex::new(r"<a:t>([^<]+)</a:t>").unwrap();
+    let texts: Vec<&str> = re.captures_iter(xml)
+        .filter_map(|cap| cap.get(1))
+        .map(|m| m.as_str())
+        .collect();
+    
+    texts.join(" ")
 }
 
 /// 扫描文件夹中的支持文件
 #[command]
 pub async fn scan_folder(path: String) -> Result<Vec<FileInfo>, String> {
-    let folder_path = PathBuf::from(&path);
+    // 验证路径安全性
+    let folder_path = validate_user_path(&path)?;
     
-    if !folder_path.exists() || !folder_path.is_dir() {
-        return Err(format!("文件夹不存在: {}", path));
+    if !folder_path.is_dir() {
+        return Err("指定路径不是文件夹".to_string());
     }
     
+    // 注意: 移除了 "doc" 格式
     let supported_extensions = [
-        "pdf", "docx", "doc", "xlsx", "xls", 
+        "pdf", "docx", "xlsx", "xls", 
         "txt", "md", "csv", "json", "xml", "pptx"
     ];
     
@@ -416,12 +688,18 @@ pub async fn scan_folder(path: String) -> Result<Vec<FileInfo>, String> {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
+                    // 递归扫描子目录
                     scan_dir(&path, files, extensions);
                 } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    if extensions.contains(&ext.to_lowercase().as_str()) {
+                    let ext_lower = ext.to_lowercase();
+                    if extensions.contains(&ext_lower.as_str()) {
                         if let Some(file_info) = create_file_info(&path) {
                             files.push(file_info);
                         }
+                    }
+                    // 对于 .doc 文件给出警告
+                    if ext_lower == "doc" {
+                        tracing::warn!("跳过不支持的 .doc 文件: {:?}", path);
                     }
                 }
             }

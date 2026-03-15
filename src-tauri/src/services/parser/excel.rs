@@ -9,102 +9,146 @@
 
 //! Excel 文件解析器
 //! 
-//! 保持公式、图表、条件格式
+//! 支持解析和脱敏 .xlsx 和 .xls 格式 Excel 文件
 
 use std::path::PathBuf;
-use calamine::{Reader, Xlsx, DataType};
+use calamine::{Reader, Xlsx, Xls, Data};
 
 /// Excel 解析结果
 pub struct ExcelParseResult {
     pub text: String,
-    pub sheets: Vec<ExcelSheet>,
-}
-
-/// Excel 工作表信息
-pub struct ExcelSheet {
-    pub name: String,
-    pub data: Vec<Vec<String>>,
+    pub sheet_count: usize,
+    pub row_count: usize,
 }
 
 /// 解析 Excel 文件
 pub fn parse_excel(path: &PathBuf) -> Result<ExcelParseResult, String> {
-    let mut workbook: Xlsx<_> = calamine::open_workbook(path)
-        .map_err(|e| format!("打开Excel失败: {}", e))?;
+    // 验证文件是否存在
+    if !path.exists() {
+        return Err(format!("文件不存在: {:?}", path));
+    }
     
+    // 检查文件大小
+    let metadata = std::fs::metadata(path)
+        .map_err(|e| format!("无法读取文件信息: {}", e))?;
+    
+    const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB
+    if metadata.len() > MAX_FILE_SIZE {
+        return Err(format!("文件过大 ({}MB)，最大支持 100MB", metadata.len() / 1024 / 1024));
+    }
+    
+    // 获取文件扩展名
+    let extension = path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    
+    // 根据扩展名选择解析器
+    let result = match extension.as_str() {
+        "xlsx" => parse_xlsx(path)?,
+        "xls" => parse_xls(path)?,
+        _ => return Err(format!("不支持的文件格式: {}", extension)),
+    };
+    
+    Ok(result)
+}
+
+/// 解析 .xlsx 文件
+fn parse_xlsx(path: &PathBuf) -> Result<ExcelParseResult, String> {
+    let mut workbook: Xlsx<_> = calamine::open_workbook(path)
+        .map_err(|e| format!("打开Excel文件失败: {}。文件可能已损坏或不是有效的 .xlsx 格式。", e))?;
+    
+    parse_workbook(&mut workbook)
+}
+
+/// 解析 .xls 文件
+fn parse_xls(path: &PathBuf) -> Result<ExcelParseResult, String> {
+    let mut workbook: Xls<_> = calamine::open_workbook(path)
+        .map_err(|e| format!("打开Excel文件失败: {}。文件可能已损坏或不是有效的 .xls 格式。", e))?;
+    
+    parse_workbook(&mut workbook)
+}
+
+/// 解析工作簿内容
+fn parse_workbook<R: std::io::Read + std::io::Seek>(workbook: &mut impl Reader<R>) -> Result<ExcelParseResult, String> {
     let sheets = workbook.sheet_names().to_vec();
-    let mut result_sheets = Vec::new();
-    let mut all_text = String::new();
+    let sheet_count = sheets.len();
+    
+    let mut text = String::new();
+    let mut total_rows = 0;
     
     for sheet_name in sheets {
-        match workbook.worksheet_range(&sheet_name) {
-            Some(Ok(range)) => {
-                let mut sheet_data = Vec::new();
+        if let Some(Ok(range)) = workbook.worksheet_range(&sheet_name) {
+            text.push_str(&format!("=== 工作表: {} ===\n", sheet_name));
+            
+            for row in range.rows() {
+                let cells: Vec<String> = row.iter()
+                    .map(|cell| format_cell_value(cell))
+                    .collect();
                 
-                for row in range.rows() {
-                    // 跳过完全空的行
-                    let has_content = row.iter().any(|cell| {
-                        !matches!(cell, DataType::Empty)
-                    });
-                    
-                    if !has_content {
-                        continue;
-                    }
-                    
-                    let cells: Vec<String> = row.iter()
-                        .map(|cell| cell_to_string(cell))
-                        .collect();
-                    
-                    if !cells.is_empty() {
-                        all_text.push_str(&cells.join("\t"));
-                        all_text.push('\n');
-                        sheet_data.push(cells);
-                    }
-                }
-                
-                // 只添加有数据的工作表
-                if !sheet_data.is_empty() {
-                    result_sheets.push(ExcelSheet {
-                        name: sheet_name,
-                        data: sheet_data,
-                    });
+                if !cells.iter().all(|c| c.is_empty()) {
+                    text.push_str(&cells.join("\t"));
+                    text.push('\n');
+                    total_rows += 1;
                 }
             }
-            Some(Err(e)) => {
-                tracing::warn!("读取工作表 {} 失败: {:?}", sheet_name, e);
-                continue;
-            }
-            None => {
-                tracing::warn!("工作表 {} 不存在", sheet_name);
-                continue;
-            }
+            
+            text.push('\n');
         }
     }
     
-    // 如果没有任何数据，返回空结果而不是错误
-    if result_sheets.is_empty() {
-        return Ok(ExcelParseResult {
-            text: String::new(),
-            sheets: vec![],
-        });
+    if text.trim().is_empty() {
+        return Err("Excel 文件为空或无法读取内容".to_string());
     }
     
     Ok(ExcelParseResult {
-        text: all_text,
-        sheets: result_sheets,
+        text,
+        sheet_count,
+        row_count: total_rows,
     })
 }
 
-/// 单元格值转字符串
-fn cell_to_string(cell: &DataType) -> String {
+/// 格式化单元格值
+fn format_cell_value(cell: &Data) -> String {
     match cell {
-        DataType::Empty => String::new(),
-        DataType::String(s) => s.clone(),
-        DataType::Float(f) => f.to_string(),
-        DataType::Int(i) => i.to_string(),
-        DataType::Bool(b) => b.to_string(),
-        DataType::DateTime(d) => d.to_string(),
-        DataType::Error(e) => format!("ERROR: {:?}", e),
-        _ => String::new(),
+        Data::Empty => String::new(),
+        Data::String(s) => s.to_string(),
+        Data::Float(f) => format_float(*f),
+        Data::Int(i) => i.to_string(),
+        Data::Bool(b) => b.to_string(),
+        Data::DateTime(dt) => {
+            // Excel 日期时间格式
+            if *dt >= 1.0 {
+                let days = (*dt - 25569.0) as i64;
+                let timestamp = days * 86400;
+                if let Some(dt) = chrono::DateTime::from_timestamp(timestamp, 0) {
+                    dt.format("%Y-%m-%d").to_string()
+                } else {
+                    format!("{:.5}", dt)
+                }
+            } else {
+                format!("{:.5}", dt)
+            }
+        }
+        Data::Error(e) => format!("#ERROR: {:?}", e),
+        _ => cell.to_string(),
+    }
+}
+
+/// 格式化浮点数（去除不必要的精度）
+fn format_float(f: f64) -> String {
+    if f.fract() == 0.0 && f.abs() < i64::MAX as f64 {
+        format!("{:.0}", f)
+    } else {
+        // 限制小数位数
+        let formatted = format!("{:.10}", f);
+        // 移除末尾的零
+        let trimmed = formatted.trim_end_matches('0');
+        if trimmed.ends_with('.') {
+            format!("{}0", trimmed)
+        } else {
+            trimmed.to_string()
+        }
     }
 }
 
@@ -113,8 +157,10 @@ pub struct ExcelMasker;
 
 impl ExcelMasker {
     /// 对 Excel 文件进行脱敏处理
+    /// 
+    /// 注意：Excel 的复杂格式（公式、图表等）可能无法完全保留
     pub fn mask_excel(input_path: &PathBuf, output_path: &PathBuf, replacements: &[(String, String)]) -> Result<(), String> {
-        // 检查输入文件是否存在
+        // 验证输入文件
         if !input_path.exists() {
             return Err(format!("输入文件不存在: {:?}", input_path));
         }
@@ -127,53 +173,33 @@ impl ExcelMasker {
             return Ok(());
         }
         
-        // 使用 umya-spreadsheet 处理 Excel
-        let mut workbook = umya_spreadsheet::reader::xlsx::read(input_path)
-            .map_err(|e| format!("读取Excel失败: {:?}", e))?;
+        // 获取文件扩展名
+        let extension = input_path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
         
-        // 遍历所有工作表
-        let sheet_count = workbook.get_sheet_collection().len();
-        
-        if sheet_count == 0 {
-            return Err("Excel文件没有工作表".to_string());
+        // 根据格式选择处理方法
+        match extension.as_str() {
+            "xlsx" => Self::mask_xlsx(input_path, output_path, replacements),
+            "xls" => Self::mask_xls(input_path, output_path, replacements),
+            _ => Err(format!("不支持的文件格式: {}", extension)),
         }
+    }
+    
+    /// 处理 .xlsx 文件
+    fn mask_xlsx(input_path: &PathBuf, output_path: &PathBuf, replacements: &[(String, String)]) -> Result<(), String> {
+        // 对于 xlsx 文件，我们可以修改 XML 内容
+        // xlsx 是一个 ZIP 文件，包含 XML 文件
         
-        for sheet_idx in 0..sheet_count {
-            // 使用 get_sheet_collection_mut 获取可变引用
-            let sheet = workbook.get_sheet_collection_mut()
-                .get_mut(sheet_idx)
-                .ok_or("无法获取工作表")?;
-            
-            // 获取工作表尺寸，使用更安全的边界
-            let row_count = sheet.get_row_dimensions().len().min(10000); // 限制最大行数
-            let col_count = sheet.get_column_dimensions().len().min(1000); // 限制最大列数
-            
-            // 遍历所有单元格
-            for row_idx in 1..=row_count + 10 { // 额外检查10行
-                for col_idx in 1..=col_count + 10 { // 额外检查10列
-                    // 使用 (col_idx, row_idx) 元组而不是引用
-                    let cell = sheet.get_cell_mut((col_idx as u32, row_idx as u32));
-                    
-                    let value = cell.get_value();
-                    let value_str = value.to_string();
-                    
-                    // 跳过空单元格
-                    if value_str.is_empty() {
-                        continue;
-                    }
-                    
-                    let mut new_value = value_str.clone();
-                    
-                    for (original, masked) in replacements {
-                        new_value = new_value.replace(original, masked);
-                    }
-                    
-                    if new_value != value_str {
-                        cell.set_value(&new_value);
-                    }
-                }
-            }
-        }
+        use std::io::{Read, Cursor};
+        use zip::ZipArchive;
+        
+        let file = std::fs::File::open(input_path)
+            .map_err(|e| format!("打开文件失败: {}", e))?;
+        
+        let mut archive = ZipArchive::new(file)
+            .map_err(|e| format!("解析ZIP失败: {}", e))?;
         
         // 确保输出目录存在
         if let Some(parent) = output_path.parent() {
@@ -181,10 +207,106 @@ impl ExcelMasker {
                 .map_err(|e| format!("创建输出目录失败: {:?}", e))?;
         }
         
-        // 保存文件
-        umya_spreadsheet::writer::xlsx::write(&workbook, output_path)
-            .map_err(|e| format!("保存Excel失败: {:?}", e))?;
+        // 创建输出文件
+        let output_file = std::fs::File::create(output_path)
+            .map_err(|e| format!("创建输出文件失败: {:?}", e))?;
+        
+        let mut zip_writer = zip::ZipWriter::new(output_file);
+        let options = zip::write::FileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        
+        // 处理每个文件
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i)
+                .map_err(|e| format!("读取ZIP条目失败: {}", e))?;
+            let file_name = file.name().to_string();
+            
+            // 检查是否是工作表文件
+            if file_name.starts_with("xl/worksheets/") && file_name.ends_with(".xml") {
+                let mut content = String::new();
+                file.read_to_string(&mut content)
+                    .map_err(|e| format!("读取工作表内容失败: {}", e))?;
+                
+                // 执行替换
+                for (original, masked) in replacements {
+                    content = content.replace(original, masked);
+                }
+                
+                // 写入修改后的内容
+                zip_writer.start_file(&file_name, options)
+                    .map_err(|e| format!("写入ZIP条目失败: {:?}", e))?;
+                zip_writer.write_all(content.as_bytes())
+                    .map_err(|e| format!("写入内容失败: {:?}", e))?;
+            } else if file_name == "xl/sharedStrings.xml" {
+                // 共享字符串表
+                let mut content = String::new();
+                file.read_to_string(&mut content)
+                    .map_err(|e| format!("读取共享字符串失败: {}", e))?;
+                
+                // 执行替换
+                for (original, masked) in replacements {
+                    content = content.replace(original, masked);
+                }
+                
+                // 写入修改后的内容
+                zip_writer.start_file(&file_name, options)
+                    .map_err(|e| format!("写入ZIP条目失败: {:?}", e))?;
+                zip_writer.write_all(content.as_bytes())
+                    .map_err(|e| format!("写入内容失败: {:?}", e))?;
+            } else {
+                // 直接复制其他文件
+                zip_writer.start_file(&file_name, options)
+                    .map_err(|e| format!("写入ZIP条目失败: {:?}", e))?;
+                
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer)
+                    .map_err(|e| format!("读取ZIP条目失败: {:?}", e))?;
+                zip_writer.write_all(&buffer)
+                    .map_err(|e| format!("写入内容失败: {:?}", e))?;
+            }
+        }
+        
+        zip_writer.finish()
+            .map_err(|e| format!("完成ZIP写入失败: {:?}", e))?;
         
         Ok(())
+    }
+    
+    /// 处理 .xls 文件
+    fn mask_xls(input_path: &PathBuf, output_path: &PathBuf, replacements: &[(String, String)]) -> Result<(), String> {
+        // 对于 .xls 文件（OLE 格式），处理更加复杂
+        // 当前实现：读取内容，生成警告，直接复制文件
+        
+        tracing::warn!("xls 格式的脱敏处理有限，建议转换为 xlsx 格式");
+        
+        // 检查是否有敏感信息需要处理
+        let parse_result = parse_xls(input_path)?;
+        let has_sensitive = replacements.iter()
+            .any(|(original, _)| parse_result.text.contains(original));
+        
+        if has_sensitive {
+            // 直接复制文件并给出警告
+            std::fs::copy(input_path, output_path)
+                .map_err(|e| format!("复制文件失败: {:?}", e))?;
+            
+            return Err("xls 格式的脱敏处理有限。\n\n建议:\n1. 将文件转换为 .xlsx 格式后处理\n2. 或导出为 CSV 格式后处理\n\n已复制原文件到输出目录。".to_string());
+        } else {
+            // 没有敏感信息，直接复制
+            std::fs::copy(input_path, output_path)
+                .map_err(|e| format!("复制文件失败: {:?}", e))?;
+            
+            Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_format_float() {
+        assert_eq!(format_float(123.0), "123");
+        assert_eq!(format_float(123.456), "123.456");
     }
 }
