@@ -12,7 +12,8 @@
 //! 支持解析和脱敏 .xlsx 和 .xls 格式 Excel 文件
 
 use std::path::PathBuf;
-use calamine::{Reader, Xlsx, Xls, Data};
+use std::io::Write;
+use calamine::{Reader, Xlsx, Xls, DataType};
 
 /// Excel 解析结果
 pub struct ExcelParseResult {
@@ -109,14 +110,14 @@ fn parse_workbook<R: std::io::Read + std::io::Seek>(workbook: &mut impl Reader<R
 }
 
 /// 格式化单元格值
-fn format_cell_value(cell: &Data) -> String {
+fn format_cell_value(cell: &DataType) -> String {
     match cell {
-        Data::Empty => String::new(),
-        Data::String(s) => s.to_string(),
-        Data::Float(f) => format_float(*f),
-        Data::Int(i) => i.to_string(),
-        Data::Bool(b) => b.to_string(),
-        Data::DateTime(dt) => {
+        DataType::Empty => String::new(),
+        DataType::String(s) => s.to_string(),
+        DataType::Float(f) => format_float(*f),
+        DataType::Int(i) => i.to_string(),
+        DataType::Bool(b) => b.to_string(),
+        DataType::DateTime(dt) => {
             // Excel 日期时间格式
             if *dt >= 1.0 {
                 let days = (*dt - 25569.0) as i64;
@@ -130,7 +131,7 @@ fn format_cell_value(cell: &Data) -> String {
                 format!("{:.5}", dt)
             }
         }
-        Data::Error(e) => format!("#ERROR: {:?}", e),
+        DataType::Error(e) => format!("#ERROR: {:?}", e),
         _ => cell.to_string(),
     }
 }

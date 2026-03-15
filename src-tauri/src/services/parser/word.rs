@@ -13,7 +13,7 @@
 //! 注意: 不支持旧版 .doc 格式（OLE Compound Document）
 
 use std::path::PathBuf;
-use std::io::{Read, Cursor};
+use std::io::{Read, Cursor, Write};
 use zip::ZipArchive;
 use regex::Regex;
 

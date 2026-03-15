@@ -224,7 +224,7 @@ impl PdfMasker {
                             if let Ok(contents) = dict.get(b"Contents") {
                                 match contents.clone() {
                                     lopdf::Object::Reference(stream_id) => {
-                                        if let Ok(stream_obj) = doc.get_object_mut(*stream_id) {
+                                        if let Ok(stream_obj) = doc.get_object_mut(stream_id) {
                                             if let lopdf::Object::Stream(stream) = stream_obj {
                                                 if let Ok(content) = stream.decompressed_content() {
                                                     let mut content_str = String::from_utf8_lossy(&content).to_string();
