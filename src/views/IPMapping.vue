@@ -9,8 +9,8 @@
   <div class="ip-mapping-page">
     <div class="page-card">
       <div class="section-title">
-        <h3>🌐 IP映射管理</h3>
-        <p>智能IP映射，保持网络拓扑关系</p>
+        <h3>🌐 IP网段映射</h3>
+        <p>配置IP网段映射规则，处理后的IP将按照映射规则转换</p>
       </div>
       
       <!-- 映射策略配置 -->
@@ -49,7 +49,67 @@
         </div>
       </div>
       
-      <!-- IP输入测试 -->
+      <!-- 网段映射配置 -->
+      <div class="mapping-config-section">
+        <div class="section-header">
+          <h4>网段映射配置</h4>
+          <el-button type="primary" size="small" @click="addMapping">
+            <el-icon><Plus /></el-icon>
+            添加映射
+          </el-button>
+        </div>
+        
+        <div class="mapping-table">
+          <el-table :data="settingsStore.settingsData.ipMappings" border style="width: 100%">
+            <el-table-column label="原始网段" min-width="200">
+              <template #default="{ row, $index }">
+                <el-input 
+                  v-model="row.original" 
+                  placeholder="例如: 192.168.1.0/24"
+                  :class="{ 'is-error': !validateCIDR(row.original) && row.original }"
+                />
+                <div v-if="!validateCIDR(row.original) && row.original" class="error-tip">
+                  请输入有效的CIDR格式
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="映射网段" min-width="200">
+              <template #default="{ row, $index }">
+                <el-input 
+                  v-model="row.mapped" 
+                  placeholder="例如: 10.0.1.0/24"
+                  :class="{ 'is-error': !validateCIDR(row.mapped) && row.mapped }"
+                />
+                <div v-if="!validateCIDR(row.mapped) && row.mapped" class="error-tip">
+                  请输入有效的CIDR格式
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" align="center">
+              <template #default="{ $index }">
+                <el-button 
+                  type="danger" 
+                  size="small" 
+                  :icon="Delete"
+                  circle
+                  @click="deleteMapping($index)"
+                />
+              </template>
+            </el-table-column>
+          </el-table>
+          
+          <div v-if="settingsStore.settingsData.ipMappings.length === 0" class="empty-tip">
+            暂无网段映射配置，点击"添加映射"按钮添加
+          </div>
+        </div>
+        
+        <div class="action-bar">
+          <el-button @click="resetMappings">重置</el-button>
+          <el-button type="primary" @click="saveMappings">保存配置</el-button>
+        </div>
+      </div>
+      
+      <!-- IP映射测试 -->
       <div class="test-section">
         <h4>IP映射测试</h4>
         <div class="test-input">
@@ -78,99 +138,103 @@
           </el-table>
         </div>
       </div>
-      
-      <!-- 映射表管理 -->
-      <div class="mapping-table-section">
-        <div class="section-header">
-          <h4>映射表 ({{ mappingCount }} 条记录)</h4>
-          <div class="actions">
-            <el-button size="small" @click="loadMappings">刷新</el-button>
-            <el-button size="small" type="primary" @click="showExportDialog">导出</el-button>
-            <el-button size="small" @click="showImportDialog">导入</el-button>
-            <el-button size="small" type="danger" @click="clearMappings">清空</el-button>
-          </div>
-        </div>
-        
-        <el-table :data="mappingRecords" border style="width: 100%">
-          <el-table-column prop="original_ip" label="原始IP" min-width="150" />
-          <el-table-column prop="mapped_ip" label="映射后" min-width="150" />
-          <el-table-column prop="ip_type" label="类型" width="100">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.ip_type === 'internal' ? 'success' : 'warning'">
-                {{ row.ip_type === 'internal' ? '内网' : '公网' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="timestamp" label="时间" width="180">
-            <template #default="{ row }">
-              {{ formatTime(row.timestamp) }}
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
     </div>
-    
-    <!-- 导出对话框 -->
-    <el-dialog v-model="exportDialogVisible" title="导出映射表" width="450px">
-      <el-form label-width="100px">
-        <el-form-item label="加密导出">
-          <el-switch v-model="exportEncrypt" />
-        </el-form-item>
-        <el-form-item v-if="exportEncrypt" label="密码">
-          <el-input v-model="exportPassword" type="password" placeholder="请输入加密密码" show-password />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="exportDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="doExport">确认导出</el-button>
-      </template>
-    </el-dialog>
-    
-    <!-- 导入对话框 -->
-    <el-dialog v-model="importDialogVisible" title="导入映射表" width="500px">
-      <el-form label-width="100px">
-        <el-form-item label="加密导入">
-          <el-switch v-model="importEncrypted" />
-        </el-form-item>
-        <el-form-item v-if="importEncrypted" label="密码">
-          <el-input v-model="importPassword" type="password" placeholder="请输入解密密码" show-password />
-        </el-form-item>
-      </el-form>
-      <el-upload
-        drag
-        accept=".json"
-        :auto-upload="false"
-        :on-change="handleImportFile"
-      >
-        <el-icon :size="48"><Upload /></el-icon>
-        <div>拖拽JSON文件到此处</div>
-      </el-upload>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Delete } from '@element-plus/icons-vue'
+import { useSettingsStore } from '@/stores/settings'
+
+const settingsStore = useSettingsStore()
 
 const internalPrefix = ref('10.10')
 const publicStrategy = ref('rfc5737')
 const testIP = ref('')
 const testResults = ref([])
-const mappingRecords = ref([])
-const mappingCount = ref(0)
-const importDialogVisible = ref(false)
-const exportDialogVisible = ref(false)
-const exportEncrypt = ref(false)
-const exportPassword = ref('')
-const importEncrypted = ref(false)
-const importPassword = ref('')
 
 const examples = computed(() => [
   { original: '192.168.1.100', type: '内网', mapped: `${internalPrefix.value}.1.100` },
   { original: '10.0.0.50', type: '内网', mapped: `${internalPrefix.value}.0.50` },
   { original: '106.12.190.227', type: '公网', mapped: publicStrategy.value === 'hide' ? '[PUBLIC_IP_HIDDEN]' : '203.0.113.227' },
 ])
+
+// CIDR格式验证正则
+const CIDR_REGEX = /^((25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\/([0-9]|[1-2][0-9]|3[0-2])$/
+
+// 验证CIDR格式
+function validateCIDR(cidr) {
+  if (!cidr) return true // 空值不验证
+  return CIDR_REGEX.test(cidr)
+}
+
+// 添加映射
+function addMapping() {
+  settingsStore.settingsData.ipMappings.push({
+    original: '',
+    mapped: ''
+  })
+}
+
+// 删除映射
+async function deleteMapping(index) {
+  const mapping = settingsStore.settingsData.ipMappings[index]
+  if (mapping.original || mapping.mapped) {
+    try {
+      await ElMessageBox.confirm('确定要删除此映射吗？', '确认删除', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+      settingsStore.settingsData.ipMappings.splice(index, 1)
+    } catch {
+      // 用户取消
+    }
+  } else {
+    settingsStore.settingsData.ipMappings.splice(index, 1)
+  }
+}
+
+// 重置映射
+async function resetMappings() {
+  if (settingsStore.settingsData.ipMappings.length === 0) return
+  
+  try {
+    await ElMessageBox.confirm('确定要清空所有映射配置吗？', '确认重置', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    settingsStore.settingsData.ipMappings = []
+    ElMessage.success('已重置')
+  } catch {
+    // 用户取消
+  }
+}
+
+// 保存映射
+function saveMappings() {
+  // 验证所有映射
+  const invalidMappings = settingsStore.settingsData.ipMappings.filter(
+    m => (m.original && !validateCIDR(m.original)) || (m.mapped && !validateCIDR(m.mapped))
+  )
+  
+  if (invalidMappings.length > 0) {
+    ElMessage.error('存在无效的CIDR格式，请检查')
+    return
+  }
+  
+  // 过滤掉空映射
+  const validMappings = settingsStore.settingsData.ipMappings.filter(
+    m => m.original && m.mapped
+  )
+  
+  settingsStore.settingsData.ipMappings = validMappings
+  settingsStore.saveSettings()
+  ElMessage.success('配置已保存')
+}
 
 // 测试映射
 async function testMapping() {
@@ -205,123 +269,6 @@ async function updateStrategy() {
     ElMessage.error('更新失败: ' + error)
   }
 }
-
-// 加载映射表
-async function loadMappings() {
-  try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    mappingRecords.value = await invoke('get_ip_mappings')
-    mappingCount.value = await invoke('get_mapping_count')
-  } catch (error) {
-    ElMessage.error('加载失败: ' + error)
-  }
-}
-
-// 显示导出对话框
-function showExportDialog() {
-  exportEncrypt.value = false
-  exportPassword.value = ''
-  exportDialogVisible.value = true
-}
-
-// 显示导入对话框
-function showImportDialog() {
-  importEncrypted.value = false
-  importPassword.value = ''
-  importDialogVisible.value = true
-}
-
-// 导出映射表
-async function doExport() {
-  try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    const result = await invoke('export_ip_mappings', {
-      encrypt: exportEncrypt.value,
-      password: exportPassword.value || null
-    })
-    
-    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `ip-mappings-${Date.now()}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    
-    exportDialogVisible.value = false
-    ElMessage.success(exportEncrypt.value ? '加密导出成功' : '导出成功')
-  } catch (error) {
-    ElMessage.error('导出失败: ' + error)
-  }
-}
-
-// 导入映射表
-async function handleImportFile(file) {
-  const reader = new FileReader()
-  reader.onload = async (e) => {
-    try {
-      const data = JSON.parse(e.target.result)
-      const { invoke } = await import('@tauri-apps/api/core')
-      
-      // 检测是否为加密文件
-      const isEncryptedFile = data.encrypted === true
-      
-      if (isEncryptedFile) {
-        // 加密文件导入
-        await invoke('import_ip_mappings', {
-          records: [],
-          encrypted: true,
-          password: importPassword.value,
-          encrypted_data: data.data,
-          salt: data.salt
-        })
-      } else {
-        // 普通文件导入
-        await invoke('import_ip_mappings', {
-          records: data,
-          encrypted: false
-        })
-      }
-      
-      ElMessage.success('导入成功')
-      importDialogVisible.value = false
-      loadMappings()
-    } catch (error) {
-      ElMessage.error('导入失败: ' + error)
-    }
-  }
-  reader.readAsText(file.raw)
-}
-
-// 清空映射表
-async function clearMappings() {
-  try {
-    await ElMessageBox.confirm('确定要清空所有映射记录吗？', '警告', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    
-    const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('clear_ip_mappings')
-    ElMessage.success('已清空')
-    loadMappings()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('清空失败: ' + error)
-    }
-  }
-}
-
-// 格式化时间
-function formatTime(timestamp) {
-  if (!timestamp) return '-'
-  return new Date(timestamp * 1000).toLocaleString('zh-CN')
-}
-
-onMounted(() => {
-  loadMappings()
-})
 </script>
 
 <style lang="scss" scoped>
@@ -344,7 +291,7 @@ onMounted(() => {
     }
   }
   
-  .strategy-section, .test-section, .mapping-table-section {
+  .strategy-section, .test-section, .mapping-config-section {
     margin-bottom: 32px;
     
     h4 {
@@ -374,6 +321,34 @@ onMounted(() => {
     }
   }
   
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  
+  .mapping-table {
+    margin-bottom: 16px;
+    
+    .error-tip {
+      font-size: 11px;
+      color: #f56c6c;
+      margin-top: 4px;
+    }
+    
+    :deep(.is-error .el-input__wrapper) {
+      box-shadow: 0 0 0 1px #f56c6c inset;
+    }
+  }
+  
+  .empty-tip {
+    text-align: center;
+    color: #909399;
+    padding: 32px 0;
+    font-size: 14px;
+  }
+  
   .test-input {
     margin-bottom: 16px;
   }
@@ -382,16 +357,12 @@ onMounted(() => {
     margin-top: 16px;
   }
   
-  .section-header {
+  .action-bar {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    
-    .actions {
-      display: flex;
-      gap: 8px;
-    }
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid #ebeef5;
   }
 }
 </style>

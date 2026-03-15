@@ -236,6 +236,7 @@ async function startProcessing() {
           fileName: file.name,
           status: 'done',
           sensitiveInfo: result.sensitiveInfo,
+          maskedContent: result.masked_content,
           outputPath: result.outputPath,
           processingTime: result.processingTime
         })

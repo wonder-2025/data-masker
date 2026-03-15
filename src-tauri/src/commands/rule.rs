@@ -13,6 +13,7 @@ use regex::Regex;
 
 /// 内置规则定义
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BuiltinRule {
     pub id: String,
     pub name: String,
@@ -27,6 +28,7 @@ pub struct BuiltinRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StrategyConfig {
     pub keep_start: usize,
     pub keep_end: usize,
@@ -40,6 +42,7 @@ pub async fn get_builtin_rules() -> Result<Vec<BuiltinRule>, String> {
 
 /// 规则测试结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RuleTestResult {
     pub matched: bool,
     pub matches: Vec<RuleMatch>,
@@ -47,6 +50,7 @@ pub struct RuleTestResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RuleMatch {
     pub text: String,
     pub start: usize,

@@ -39,6 +39,7 @@ pub struct MaskResult {
 
 /// 脱敏策略配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StrategyConfig {
     pub keep_start: usize,
     pub keep_end: usize,
@@ -48,6 +49,7 @@ pub struct StrategyConfig {
 
 /// 规则定义（用于 API 接口）
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Rule {
     pub id: String,
     pub name: String,

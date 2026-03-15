@@ -74,7 +74,9 @@ export const useSettingsStore = defineStore('settings', () => {
       collectErrors: false,
       collectOperations: false,
       collectAnalytics: false
-    }
+    },
+    // IP网段映射
+    ipMappings: []
   })
 
   // 计算属性
@@ -126,7 +128,8 @@ export const useSettingsStore = defineStore('settings', () => {
         collectErrors: false,
         collectOperations: false,
         collectAnalytics: false
-      }
+      },
+      ipMappings: []
     }
   }
 
