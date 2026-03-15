@@ -12,15 +12,16 @@
 //! 支持解析和脱敏 PDF 文档
 
 use std::path::PathBuf;
-use std::io::Cursor;
 
 /// PDF 解析结果
+#[allow(dead_code)]
 pub struct PdfParseResult {
     pub text: String,
     pub page_count: usize,
 }
 
 /// 解析 PDF 文档
+#[allow(dead_code)]
 pub fn parse_pdf(path: &PathBuf) -> Result<PdfParseResult, String> {
     // 验证文件是否存在
     if !path.exists() {
@@ -147,18 +148,15 @@ fn parse_pdf_content_stream(data: &[u8]) -> String {
     let re_hex = regex::Regex::new(r"<([0-9a-fA-F]*)>\s*Tj").unwrap();
     for cap in re_hex.captures_iter(&content) {
         if let Some(m) = cap.get(1) {
-            // 简单的十六进制解码
+            // 改进的十六进制解码，支持 UTF-8 编码
             let hex = m.as_str();
             if hex.len() % 2 == 0 {
-                for i in (0..hex.len()).step_by(2) {
-                    if let Ok(byte) = u8::from_str_radix(&hex[i..i+2], 16) {
-                        if byte >= 32 && byte < 127 {
-                            text.push(byte as char);
-                        } else if byte >= 0xE4 && byte <= 0xE9 {
-                            // 可能是中文字符的开头，简单处理
-                            text.push('?');
-                        }
-                    }
+                let bytes: Vec<u8> = (0..hex.len())
+                    .step_by(2)
+                    .filter_map(|i| u8::from_str_radix(&hex[i..i+2], 16).ok())
+                    .collect();
+                if let Ok(decoded) = String::from_utf8(bytes) {
+                    text.push_str(&decoded);
                 }
             }
         }

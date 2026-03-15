@@ -36,6 +36,7 @@ pub struct FileContent {
 
 /// 安全验证错误
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum SecurityError {
     PathTraversal,
     InvalidPath,
@@ -423,8 +424,8 @@ fn create_file_info(path: &std::path::Path) -> Option<FileInfo> {
         .unwrap_or("")
         .to_lowercase();
     
-    // 文件大小限制：500MB
-    const MAX_FILE_SIZE: u64 = 500 * 1024 * 1024;
+    // 文件大小限制：100MB（与解析器保持一致）
+    const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024;
     if metadata.len() > MAX_FILE_SIZE {
         tracing::warn!("文件过大，跳过: {} ({} 字节)", name, metadata.len());
         return None;
@@ -562,7 +563,7 @@ fn extract_text_from_docx_xml(xml: &str) -> String {
 
 /// 读取 Excel 文件预览
 fn read_xlsx_preview(path: &PathBuf) -> Result<String, String> {
-    use calamine::Reader;
+    
     
     // 检查文件是否存在
     if !path.exists() {

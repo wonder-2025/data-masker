@@ -115,8 +115,8 @@ class ErrorHandler {
       console.groupEnd()
     }
 
-    // 生产环境可以发送到错误收集服务
-    // 这里只是示例，实际应该调用日志收集器
+    // 生产环境不输出到控制台，避免日志泄露
+    // 仅发送到错误收集服务
     if (this.isProduction && typeof window !== 'undefined') {
       // 可以集成到现有的日志收集系统
       const logData = {

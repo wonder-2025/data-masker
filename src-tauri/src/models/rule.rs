@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// 脱敏规则
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Rule {
     pub id: String,
     pub name: String,
@@ -27,6 +28,7 @@ pub struct Rule {
 
 /// 规则类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum RuleType {
     // 个人信息
     IdCard,
@@ -64,6 +66,7 @@ pub enum RuleType {
 
 /// 脱敏策略
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum MaskStrategy {
     FullMask,
     PartialMask { keep_start: usize, keep_end: usize },
@@ -88,6 +91,7 @@ impl Default for Rule {
     }
 }
 
+#[allow(dead_code)]
 impl Rule {
     /// 创建新的自定义规则
     pub fn custom(name: &str, pattern: &str) -> Self {

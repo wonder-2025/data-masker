@@ -16,6 +16,7 @@ use std::io::Write;
 use calamine::{Reader, Xlsx, Xls, DataType};
 
 /// Excel 解析结果
+#[allow(dead_code)]
 pub struct ExcelParseResult {
     pub text: String,
     pub sheet_count: usize,
@@ -23,6 +24,7 @@ pub struct ExcelParseResult {
 }
 
 /// 解析 Excel 文件
+#[allow(dead_code)]
 pub fn parse_excel(path: &PathBuf) -> Result<ExcelParseResult, String> {
     // 验证文件是否存在
     if !path.exists() {
@@ -55,6 +57,7 @@ pub fn parse_excel(path: &PathBuf) -> Result<ExcelParseResult, String> {
 }
 
 /// 解析 .xlsx 文件
+#[allow(dead_code)]
 fn parse_xlsx(path: &PathBuf) -> Result<ExcelParseResult, String> {
     let mut workbook: Xlsx<_> = calamine::open_workbook(path)
         .map_err(|e| format!("打开Excel文件失败: {}。文件可能已损坏或不是有效的 .xlsx 格式。", e))?;
@@ -138,18 +141,20 @@ fn format_cell_value(cell: &DataType) -> String {
 
 /// 格式化浮点数（去除不必要的精度）
 fn format_float(f: f64) -> String {
-    if f.fract() == 0.0 && f.abs() < i64::MAX as f64 {
-        format!("{:.0}", f)
-    } else {
-        // 限制小数位数
-        let formatted = format!("{:.10}", f);
-        // 移除末尾的零
-        let trimmed = formatted.trim_end_matches('0');
-        if trimmed.ends_with('.') {
-            format!("{}0", trimmed)
-        } else {
-            trimmed.to_string()
+    // 安全检查：避免溢出和精度问题
+    if f.is_finite() && f.fract() == 0.0 && f.abs() < (i64::MAX as f64).min(1e15) {
+        if let Ok(i) = i64::try_from(f as i128) {
+            return format!("{}", i);
         }
+    }
+    // 限制小数位数
+    let formatted = format!("{:.10}", f);
+    // 移除末尾的零
+    let trimmed = formatted.trim_end_matches('0');
+    if trimmed.ends_with('.') {
+        format!("{}0", trimmed)
+    } else {
+        trimmed.to_string()
     }
 }
 
@@ -193,7 +198,7 @@ impl ExcelMasker {
         // 对于 xlsx 文件，我们可以修改 XML 内容
         // xlsx 是一个 ZIP 文件，包含 XML 文件
         
-        use std::io::{Read, Cursor};
+        use std::io::Read;
         use zip::ZipArchive;
         
         let file = std::fs::File::open(input_path)

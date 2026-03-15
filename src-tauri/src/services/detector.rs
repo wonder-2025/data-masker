@@ -16,6 +16,7 @@ use std::collections::HashMap;
 
 /// 检测结果
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Detection {
     pub info_type: String,
     pub original: String,
@@ -29,6 +30,7 @@ pub struct Detection {
 
 /// 规则定义
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Rule {
     pub id: String,
     pub name: String,

@@ -348,19 +348,4 @@ pub async fn process_file(
     })
 }
 
-/// 生成输出文件路径
-fn generate_output_path(input_path: &str) -> String {
-    let path = std::path::PathBuf::from(input_path);
-    let file_stem = path.file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("output");
-    let extension = path.extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("txt");
-    
-    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-    let output_name = format!("{}_masked_{}.{}", file_stem, timestamp, extension);
-    
-    // 返回相对于用户文档目录的路径
-    format!("output/{}", output_name)
-}
+

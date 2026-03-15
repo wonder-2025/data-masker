@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-03-15T19:15:24.850957",
+  "project_path": "/root/.openclaw/workspace/data-masker",
+  "project_type": "tauri",
+  "modifications": {
+    "has_changes": false,
+    "files_changed": 0,
+    "diff_stat": "无修改"
+  },
+  "verifications": {
+    "rust": {
+      "success": true,
+      "errors": 0,
+      "warnings": 59,
+      "output": "IdCardValidator;\n   |            ^^^^^^^^^^^^^^^\n\nwarning: associated functions `validate` and `get_info` are never used\n  --> src/utils/validators.rs:19:12\n   |\n17 | impl IdCardValidator {\n   | -------------------- associated functions in this implementation\n18 |     /// 校验身份证号\n19 |     pub fn validate(id: &str) -> bool {\n   |            ^^^^^^^^\n...\n59 |     pub fn get_info(id: &str) -> Option<IdCardInfo> {\n   |            ^^^^^^^^\n\nwarning: struct `IdCardInfo` is never constructed\n  --> src/utils/validators.rs:97:12\n   |\n97 | pub struct IdCardInfo {\n   |            ^^^^^^^^^^\n\nwarning: struct `BankCardValidator` is never constructed\n   --> src/utils/validators.rs:104:12\n    |\n104 | pub struct BankCardValidator;\n    |            ^^^^^^^^^^^^^^^^^\n\nwarning: associated functions `validate` and `get_bank_info` are never used\n   --> src/utils/validators.rs:108:12\n    |\n106 | impl BankCardValidator {\n    | ---------------------- associated functions in this implementation\n107 |     /// 校验银行卡号\n108 |     pub fn validate(number: &str) -> bool {\n    |            ^^^^^^^^\n...\n138 |     pub fn get_bank_info(number: &str) -> Option<BankInfo> {\n    |            ^^^^^^^^^^^^^\n\nwarning: struct `BankInfo` is never constructed\n   --> src/utils/validators.rs:166:12\n    |\n166 | pub struct BankInfo {\n    |            ^^^^^^^^\n\nwarning: struct `CreditCodeValidator` is never constructed\n   --> src/utils/validators.rs:172:12\n    |\n172 | pub struct CreditCodeValidator;\n    |            ^^^^^^^^^^^^^^^^^^^\n\nwarning: associated function `validate` is never used\n   --> src/utils/validators.rs:176:12\n    |\n174 | impl CreditCodeValidator {\n    | ------------------------ associated function in this implementation\n175 |     /// 校验统一社会信用代码\n176 |     pub fn validate(code: &str) -> bool {\n    |            ^^^^^^^^\n\nwarning: `data-masker` (lib) generated 58 warnings (run `cargo fix --lib -p data-masker` to apply 3 suggestions)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.19s\n"
+    },
+    "nodejs": {
+      "success": true,
+      "output": ".\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\nwarnings when minifying css:\n▲ [WARNING] Comments in CSS use \"/* ... */\" instead of \"//\" [js-comment-in-css]\n\n    <stdin>:88:1:\n      88 │ }// 产品设计: wonder-宏\n         ╵  ~~\n\n\n▲ [WARNING] Comments in CSS use \"/* ... */\" instead of \"//\" [js-comment-in-css]\n\n    <stdin>:89:0:\n      89 │ // 架构设计/开发实现: JARVIS AI Assistant\n         ╵ ~~\n\n\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    }
+  },
+  "summary": {
+    "total_errors": 0,
+    "total_warnings": 1,
+    "errors": [],
+    "warnings": [
+      "Rust 编译警告: 59 个"
+    ],
+    "can_commit": true
+  }
+}

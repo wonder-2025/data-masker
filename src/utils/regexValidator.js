@@ -7,11 +7,11 @@
  */
 
 class RegexValidator {
-  constructor() {
+  constructor(options = {}) {
     // 正则表达式执行超时时间（毫秒）
-    this.timeoutMs = 100
+    this.timeoutMs = options.timeoutMs || 100
     // 最大正则表达式长度
-    this.maxLength = 500
+    this.maxLength = options.maxLength || 500
     // 危险模式列表（可能导致回溯爆炸）
     this.dangerousPatterns = [
       /\([^)]*\+[^)]*\)/,          // 嵌套量词 (a+)+

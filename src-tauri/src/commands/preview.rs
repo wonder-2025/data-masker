@@ -101,6 +101,7 @@ pub async fn generate_preview(
 
 /// 批量预览文件
 #[command]
+#[allow(dead_code)]
 pub async fn batch_preview(
     file_paths: Vec<String>,
     rules: Vec<crate::commands::mask::Rule>,
@@ -133,6 +134,7 @@ pub async fn batch_preview(
 
 /// 确认预览（检查是否可以继续处理）
 #[command]
+#[allow(dead_code)]
 pub async fn confirm_preview(
     file_path: String,
     rules: Vec<crate::commands::mask::Rule>,

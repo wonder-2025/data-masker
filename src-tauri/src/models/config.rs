@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 /// 应用配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct AppConfig {
     pub general: GeneralConfig,
     pub masking: MaskingConfig,
@@ -22,6 +23,7 @@ pub struct AppConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct GeneralConfig {
     pub language: String,
     pub theme: String,
@@ -30,6 +32,7 @@ pub struct GeneralConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct MaskingConfig {
     pub default_strategy: String,
     pub keep_start_digits: usize,
@@ -38,6 +41,7 @@ pub struct MaskingConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct SecurityConfig {
     pub password_protect: bool,
     pub auto_clean_temp: bool,
@@ -46,6 +50,7 @@ pub struct SecurityConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct AdvancedConfig {
     pub log_level: String,
     pub max_file_size_mb: u32,
@@ -86,6 +91,7 @@ impl Default for AppConfig {
     }
 }
 
+#[allow(dead_code)]
 impl AppConfig {
     /// 从文件加载配置
     pub fn load(path: &PathBuf) -> Result<Self, String> {

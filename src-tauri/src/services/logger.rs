@@ -17,6 +17,7 @@ use std::path::PathBuf;
 
 /// 日志级别
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum LogLevel {
     Info,
     Warning,
@@ -26,6 +27,7 @@ pub enum LogLevel {
 
 /// 审计日志条目
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct AuditLogEntry {
     pub id: String,
     pub timestamp: DateTime<Local>,
@@ -38,11 +40,13 @@ pub struct AuditLogEntry {
 }
 
 /// 审计日志管理器
+#[allow(dead_code)]
 pub struct AuditLogger {
     log_file: PathBuf,
     entries: Vec<AuditLogEntry>,
 }
 
+#[allow(dead_code)]
 impl AuditLogger {
     /// 创建新的审计日志管理器
     pub fn new(data_dir: &PathBuf) -> Self {
@@ -132,6 +136,7 @@ impl AuditLogger {
 }
 
 /// 导出审计日志
+#[allow(dead_code)]
 pub fn export_audit_log(entries: &[AuditLogEntry]) -> String {
     let mut report = String::new();
     

@@ -18,11 +18,25 @@ class SecureStorage {
   /**
    * 生成加密密钥
    * 使用设备指纹作为密钥材料,增加安全性
+   * 使用随机盐值避免密钥可预测性
    */
   async generateKey() {
     // 使用设备指纹生成密钥
     const fingerprint = await this.getDeviceFingerprint()
     const encoder = new TextEncoder()
+    
+    // 从存储中获取或生成新的随机盐
+    let saltBase64 = localStorage.getItem('data-masker-salt')
+    let salt
+    if (saltBase64) {
+      // 使用已存储的随机盐
+      salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0))
+    } else {
+      // 生成新的随机盐并存储
+      salt = crypto.getRandomValues(new Uint8Array(this.saltLength))
+      localStorage.setItem('data-masker-salt', btoa(String.fromCharCode(...salt)))
+    }
+    
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
       encoder.encode(fingerprint),
@@ -30,9 +44,6 @@ class SecureStorage {
       false,
       ['deriveBits', 'deriveKey']
     )
-
-    // 使用固定盐值(实际应用中应该随机生成并存储)
-    const salt = encoder.encode('data-masker-salt-v1')
     
     this.key = await crypto.subtle.deriveKey(
       {

@@ -92,10 +92,12 @@ impl Encryptor {
 }
 
 /// 哈希工具
+#[allow(dead_code)]
 pub struct Hasher;
 
 impl Hasher {
     /// SHA256 哈希
+    #[allow(dead_code)]
     pub fn sha256(data: &str) -> String {
         use sha2::{Sha256, Digest};
         
@@ -107,6 +109,7 @@ impl Hasher {
     }
     
     /// SHA256 哈希（前N位）
+    #[allow(dead_code)]
     pub fn sha256_prefix(data: &str, prefix_len: usize) -> String {
         let hash = Self::sha256(data);
         hash[..prefix_len.min(hash.len())].to_string()

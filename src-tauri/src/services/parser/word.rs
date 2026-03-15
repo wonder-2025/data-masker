@@ -18,6 +18,7 @@ use zip::ZipArchive;
 use regex::Regex;
 
 /// Word 解析结果
+#[allow(dead_code)]
 pub struct WordParseResult {
     pub text: String,
     pub paragraphs: usize,
@@ -27,6 +28,7 @@ pub struct WordParseResult {
 /// 
 /// .docx 格式是基于 XML 的 ZIP 压缩包
 /// 主要内容在 word/document.xml 中
+#[allow(dead_code)]
 pub fn parse_word(path: &PathBuf) -> Result<WordParseResult, String> {
     // 检查文件扩展名
     let extension = path.extension()
@@ -67,22 +69,18 @@ pub fn parse_word(path: &PathBuf) -> Result<WordParseResult, String> {
         })?;
     
     // 提取文档内容
-    let mut content = String::new();
-    let mut paragraphs = 0;
-    
-    // 读取主文档
-    if let Ok(mut doc) = archive.by_name("word/document.xml") {
+    let (content, paragraphs) = {
+        // 读取主文档
+        let mut doc = archive.by_name("word/document.xml")
+            .map_err(|_| "无法找到文档内容: 文件可能已损坏或不是有效的 Word 文档".to_string())?;
+        
         let mut xml_content = String::new();
         doc.read_to_string(&mut xml_content)
             .map_err(|e| format!("读取文档内容失败: {}", e))?;
         
         // 提取文本内容
-        let (text, para_count) = extract_text_from_docx(&xml_content);
-        content = text;
-        paragraphs = para_count;
-    } else {
-        return Err("无法找到文档内容: 文件可能已损坏或不是有效的 Word 文档".to_string());
-    }
+        extract_text_from_docx(&xml_content)
+    };
     
     if content.trim().is_empty() {
         return Err("Word 文档内容为空".to_string());
@@ -130,6 +128,25 @@ fn extract_text_from_docx(xml: &str) -> (String, usize) {
 pub struct WordMasker;
 
 impl WordMasker {
+    /// 检查内容是否包含潜在的 XML 注入攻击
+    fn contains_xml_injection(content: &str) -> bool {
+        // 检查常见的 XML 注入模式
+        let dangerous_patterns = [
+            "<!DOCTYPE",
+            "<!ENTITY",
+            "<![CDATA[",
+            "<?xml",
+            "javascript:",
+            "vbscript:",
+            "onload=",
+            "onerror=",
+            "onclick=",
+        ];
+        
+        let lower = content.to_lowercase();
+        dangerous_patterns.iter().any(|pattern| lower.contains(&pattern.to_lowercase()))
+    }
+    
     /// 对 Word 文档进行脱敏处理
     pub fn mask_word(input_path: &PathBuf, output_path: &PathBuf, replacements: &[(String, String)]) -> Result<(), String> {
         // 验证输入文件
@@ -174,6 +191,11 @@ impl WordMasker {
         
         // 执行替换
         for (original, masked) in replacements {
+            // 安全检查：验证内容不包含 XML 注入攻击
+            if Self::contains_xml_injection(original) || Self::contains_xml_injection(masked) {
+                tracing::warn!("检测到潜在的 XML 注入内容，跳过该替换");
+                continue;
+            }
             document_xml = document_xml.replace(original, masked);
         }
         

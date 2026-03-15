@@ -130,7 +130,7 @@ export default {
         validFiles.push({
           id: Date.now() + Math.random().toString(36).substr(2, 9),
           name: file.name,
-          path: file.path || file.name,
+          path: file.path && file.path.trim() ? file.path : file.name,
           size: file.size,
           type: ext.slice(1),
           file: file,

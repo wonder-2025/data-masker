@@ -264,6 +264,11 @@ export const useRulesStore = defineStore('rules', () => {
       }))
     } catch (e) {
       console.error('保存规则失败:', e)
+      if (e.name === 'QuotaExceededError') {
+        ElMessage.error('存储空间不足，无法保存规则。请清理浏览器缓存。')
+      } else if (e.name === 'SecurityError') {
+        ElMessage.warning('本地存储被禁用，规则将不会持久化保存')
+      }
     }
   }
   

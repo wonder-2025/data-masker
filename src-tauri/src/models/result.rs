@@ -14,6 +14,7 @@ use chrono::{DateTime, Local};
 
 /// 脱敏处理结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct MaskResult {
     pub id: String,
     pub file_name: String,
@@ -27,6 +28,7 @@ pub struct MaskResult {
 
 /// 敏感信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct SensitiveInfo {
     pub rule_id: String,
     pub rule_name: String,
@@ -39,6 +41,7 @@ pub struct SensitiveInfo {
 
 /// 文本位置
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct TextPosition {
     pub start: usize,
     pub end: usize,
@@ -48,6 +51,7 @@ pub struct TextPosition {
 
 /// 处理状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(dead_code)]
 pub enum ProcessStatus {
     Pending,
     Processing,
@@ -58,6 +62,7 @@ pub enum ProcessStatus {
 
 /// 处理统计
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ProcessStats {
     pub total_files: usize,
     pub success_count: usize,
@@ -81,6 +86,7 @@ impl Default for MaskResult {
     }
 }
 
+#[allow(dead_code)]
 impl ProcessStats {
     pub fn new() -> Self {
         ProcessStats {
