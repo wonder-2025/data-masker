@@ -33,10 +33,7 @@
           <span>规则配置</span>
         </el-menu-item>
         
-        <el-menu-item index="/preview">
-          <el-icon><View /></el-icon>
-          <span>预览确认</span>
-        </el-menu-item>
+
         
         <el-menu-item index="/result">
           <el-icon><CircleCheck /></el-icon>

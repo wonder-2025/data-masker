@@ -4,7 +4,6 @@
 // 核心特性:
 // - 本地处理，零上传（解决云端泄露痛点）
 // - 格式无损保持（解决格式破坏痛点）
-// - 预览确认机制（解决无预览痛点）
 // - 自定义规则系统（解决规则固化痛点）
 
 //! Data Masker - 文件脱敏工具
@@ -108,9 +107,6 @@ pub fn run() {
             commands::rule::get_builtin_rules,
             commands::rule::test_rule,
             commands::rule::validate_regex,
-            
-            // 预览
-            commands::preview::generate_preview,
             
             // 导出
             commands::export::export_result,

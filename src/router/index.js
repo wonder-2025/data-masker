@@ -23,12 +23,7 @@ const routes = [
     component: () => import('@/views/RuleConfig.vue'),
     meta: { title: '规则配置' }
   },
-  {
-    path: '/preview',
-    name: 'Preview',
-    component: () => import('@/views/Preview.vue'),
-    meta: { title: '预览确认' }
-  },
+
   {
     path: '/processing',
     name: 'Processing',
@@ -64,7 +59,7 @@ const router = createRouter({
 let isUnlocked = false
 
 // 需要文件检查的路由
-const FILE_REQUIRED_ROUTES = ['/preview', '/processing', '/result']
+const FILE_REQUIRED_ROUTES = ['/processing', '/result']
 
 // 路由守卫 - 密码保护和文件检查
 router.beforeEach((to, from, next) => {

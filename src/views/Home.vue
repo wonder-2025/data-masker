@@ -96,12 +96,7 @@
         <el-icon :size="12" color="#DCDFE6"><ArrowRight /></el-icon>
         <div class="step-item">
           <span class="step-num">3</span>
-          <span class="step-text">预览确认</span>
-        </div>
-        <el-icon :size="12" color="#DCDFE6"><ArrowRight /></el-icon>
-        <div class="step-item">
-          <span class="step-num">4</span>
-          <span class="step-text">导出结果</span>
+          <span class="step-text">开始脱敏</span>
         </div>
       </div>
     </div>

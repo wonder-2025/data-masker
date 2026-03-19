@@ -152,7 +152,7 @@
       </el-button>
       <el-button @click="resetRules">重置为默认</el-button>
       <el-button type="primary" @click="goNext">
-        下一步：预览确认
+        开始脱敏
         <el-icon class="el-icon--right"><ArrowRight /></el-icon>
       </el-button>
     </div>
@@ -593,13 +593,13 @@ function goBack() {
   router.push('/file-select')
 }
 
-// 下一步
+// 下一步 - 直接开始处理
 function goNext() {
   if (enabledRulesCount.value === 0) {
     ElMessage.warning('请至少启用一条脱敏规则')
     return
   }
-  router.push('/preview')
+  router.push('/processing')
 }
 </script>
 
