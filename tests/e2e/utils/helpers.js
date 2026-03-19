@@ -1,11 +1,15 @@
-const logger = require('./logger');
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import logger from './logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * 安全执行操作，捕获所有错误
  */
-async function safeAction(action, description, page) {
+export async function safeAction(action, description, page) {
   try {
     logger.log(`执行: ${description}`);
     const result = await action();
@@ -34,7 +38,7 @@ async function safeAction(action, description, page) {
 /**
  * 等待元素出现
  */
-async function waitForElement(page, selector, timeout = 10000) {
+export async function waitForElement(page, selector, timeout = 10000) {
   try {
     await page.waitForSelector(selector, { timeout });
     return true;
@@ -47,7 +51,7 @@ async function waitForElement(page, selector, timeout = 10000) {
 /**
  * 检查元素是否存在
  */
-async function elementExists(page, selector) {
+export async function elementExists(page, selector) {
   try {
     const element = await page.$(selector);
     return element !== null;
@@ -59,7 +63,7 @@ async function elementExists(page, selector) {
 /**
  * 等待页面加载完成
  */
-async function waitForPageLoad(page, timeout = 30000) {
+export async function waitForPageLoad(page, timeout = 30000) {
   try {
     await page.waitForLoadState('networkidle', { timeout });
     return true;
@@ -72,7 +76,7 @@ async function waitForPageLoad(page, timeout = 30000) {
 /**
  * 获取元素文本
  */
-async function getElementText(page, selector) {
+export async function getElementText(page, selector) {
   try {
     const element = await page.$(selector);
     if (element) {
@@ -88,7 +92,7 @@ async function getElementText(page, selector) {
 /**
  * 安全点击元素
  */
-async function safeClick(page, selector, description = '') {
+export async function safeClick(page, selector, description = '') {
   return safeAction(
     async () => {
       await page.click(selector);
@@ -101,7 +105,7 @@ async function safeClick(page, selector, description = '') {
 /**
  * 安全输入文本
  */
-async function safeFill(page, selector, value, description = '') {
+export async function safeFill(page, selector, value, description = '') {
   return safeAction(
     async () => {
       await page.fill(selector, value);
@@ -110,13 +114,3 @@ async function safeFill(page, selector, value, description = '') {
     page
   );
 }
-
-module.exports = {
-  safeAction,
-  waitForElement,
-  elementExists,
-  waitForPageLoad,
-  getElementText,
-  safeClick,
-  safeFill
-};

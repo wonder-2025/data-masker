@@ -1,8 +1,8 @@
-const { test, expect } = require('@playwright/test');
-const path = require('path');
-const fs = require('fs');
-const logger = require('./utils/logger');
-const { safeAction } = require('./utils/helpers');
+import { test, expect } from '@playwright/test';
+import path from 'path';
+import fs from 'fs';
+import logger from './utils/logger.js';
+import { safeAction } from './utils/helpers.js';
 
 test.describe('文件处理测试', () => {
   

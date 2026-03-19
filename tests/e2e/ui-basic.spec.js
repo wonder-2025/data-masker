@@ -1,6 +1,6 @@
-const { test, expect } = require('@playwright/test');
-const logger = require('./utils/logger');
-const { safeAction, waitForElement } = require('./utils/helpers');
+import { test, expect } from '@playwright/test';
+import logger from './utils/logger.js';
+import { safeAction, waitForElement } from './utils/helpers.js';
 
 test.describe('基础UI测试', () => {
   
