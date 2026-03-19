@@ -38,7 +38,8 @@ const defaultSettings = {
     collectErrors: true,
     collectOperations: false,
     collectAnalytics: false
-  }
+  },
+  ipMappings: []  // IP映射配置
 }
 
 /**
