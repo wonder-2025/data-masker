@@ -330,12 +330,17 @@ async function openOutputDir() {
 // 导出报告
 async function exportReport() {
   try {
+    console.log('[DEBUG] ========== 导出报告 ==========')
+    console.log('[DEBUG] resultStore.results 数量:', resultStore.results.length)
+    console.log('[DEBUG] 报告数据:', JSON.stringify(resultStore.getReportData(), null, 2))
+    
     const { invoke } = await import('@tauri-apps/api/core')
     const reportPath = await invoke('export_report', {
       reportData: resultStore.getReportData()
     })
     ElMessage.success(`报告已导出: ${reportPath}`)
   } catch (error) {
+    console.error('[DEBUG] 导出报告失败:', error)
     ElMessage.error('导出报告失败: ' + (error.message || error))
   }
 }
@@ -409,6 +414,15 @@ function startNew() {
 
 // 组件挂载时初始化图表
 onMounted(() => {
+  console.log('[DEBUG] ========== 结果页面加载 ==========')
+  console.log('[DEBUG] resultStore.results 数量:', resultStore.results.length)
+  console.log('[DEBUG] results 数量:', results.value.length)
+  
+  if (resultStore.results.length === 0) {
+    console.error('[DEBUG] 错误: resultStore.results 为空!')
+    ElMessage.warning('没有处理结果，请重新处理文件')
+  }
+  
   initChart()
   
   // 添加到最近文件

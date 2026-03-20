@@ -178,14 +178,22 @@ async function startProcessing() {
   const files = filesStore.files
   const rules = rulesStore.enabledRules
   
+  console.log('[DEBUG] ========== 处理开始 ==========')
+  console.log('[DEBUG] 文件数量:', files.length)
+  console.log('[DEBUG] 文件列表:', JSON.stringify(files, null, 2))
+  console.log('[DEBUG] 规则数量:', rules.length)
+  console.log('[DEBUG] 规则列表:', rules.map(r => ({ id: r.id, name: r.name, enabled: r.enabled })))
+  
   if (files.length === 0) {
     ElMessage.warning('没有要处理的文件')
+    console.error('[DEBUG] 错误: filesStore.files 为空!')
     router.push('/file-select')
     return
   }
   
   if (rules.length === 0) {
     ElMessage.warning('没有启用的脱敏规则')
+    console.error('[DEBUG] 错误: rulesStore.enabledRules 为空!')
     router.push('/rule-config')
     return
   }
@@ -224,18 +232,20 @@ async function startProcessing() {
       try {
         // 获取用户设置的输出目录 - 确保从最新设置中读取
         const outputDir = settingsStore.settingsData?.general?.outputDir || ''
-        console.log('[DEBUG] Output directory from settings:', outputDir)
-        console.log('[DEBUG] Full settings:', JSON.stringify(settingsStore.settingsData, null, 2))
-        
-        // 规则检查 - 确保规则正确传递
-        console.log('[DEBUG] Rules to process:', rules.length, 'rules')
-        console.log('[DEBUG] First rule sample:', rules[0] ? JSON.stringify(rules[0], null, 2) : 'No rules')
+        console.log('[DEBUG] ========== 文件处理 ==========')
+        console.log('[DEBUG] 文件路径:', file.path)
+        console.log('[DEBUG] 输出目录:', outputDir)
+        console.log('[DEBUG] 规则数量:', rules.length)
         
         const result = await invoke('process_file', {
           filePath: file.path,
           rules: rules,
           outputDir: outputDir || null
         })
+        
+        console.log('[DEBUG] 处理结果:', JSON.stringify(result, null, 2))
+        console.log('[DEBUG] 敏感信息数量:', result.sensitiveCount)
+        console.log('[DEBUG] 敏感信息列表:', result.sensitiveInfo)
         
         // 更新文件状态
         filesStore.updateFileStatus(file.id, 'done')
@@ -253,11 +263,18 @@ async function startProcessing() {
           processingTime: result.processingTime
         })
         
+        console.log('[DEBUG] 结果已添加到 resultStore')
+        console.log('[DEBUG] resultStore.results 数量:', resultStore.results.length)
+        
         detectedCount.value += result.sensitiveCount
         processedCount.value++
         
         resultStore.addLog('success', `处理完成: ${file.name}，发现 ${result.sensitiveCount} 处敏感信息`)
       } catch (error) {
+        console.error('[DEBUG] ========== 处理失败 ==========')
+        console.error('[DEBUG] 文件:', file.name)
+        console.error('[DEBUG] 错误:', error)
+        console.error('[DEBUG] 错误堆栈:', error.stack)
         filesStore.updateFileStatus(file.id, 'error')
         resultStore.addLog('error', `处理失败: ${file.name} - ${error.message || error}`)
       }
