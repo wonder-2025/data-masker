@@ -243,9 +243,13 @@ async function startProcessing() {
           outputDir: outputDir || null
         })
         
-        console.log('[DEBUG] 处理结果:', JSON.stringify(result, null, 2))
-        console.log('[DEBUG] 敏感信息数量:', result.sensitiveCount)
-        console.log('[DEBUG] 敏感信息列表:', result.sensitiveInfo)
+        console.log('[DEBUG] ========== Tauri 返回结果 ==========')
+        console.log('[DEBUG] result 完整对象:', result)
+        console.log('[DEBUG] result.sensitiveCount:', result.sensitiveCount, typeof result.sensitiveCount)
+        console.log('[DEBUG] result.sensitiveInfo:', result.sensitiveInfo, typeof result.sensitiveInfo)
+        console.log('[DEBUG] result.sensitiveInfo 长度:', result.sensitiveInfo?.length)
+        console.log('[DEBUG] result.masked_content 存在:', !!result.masked_content)
+        console.log('[DEBUG] result.outputPath:', result.outputPath)
         
         // 更新文件状态
         filesStore.updateFileStatus(file.id, 'done')
@@ -253,18 +257,21 @@ async function startProcessing() {
         files[i].processingTime = result.processingTime
         
         // 添加结果
-        resultStore.addResult({
+        const resultData = {
           fileId: file.id,
           fileName: file.name,
           status: 'done',
-          sensitiveInfo: result.sensitiveInfo,
+          sensitiveInfo: result.sensitiveInfo || [],
           maskedContent: result.masked_content,
           outputPath: result.outputPath,
           processingTime: result.processingTime
-        })
+        }
         
-        console.log('[DEBUG] 结果已添加到 resultStore')
-        console.log('[DEBUG] resultStore.results 数量:', resultStore.results.length)
+        console.log('[DEBUG] 准备添加到 resultStore:', resultData)
+        
+        resultStore.addResult(resultData)
+        
+        console.log('[DEBUG] resultStore.results 当前数量:', resultStore.results.length)
         
         detectedCount.value += result.sensitiveCount
         processedCount.value++

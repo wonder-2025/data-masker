@@ -62,7 +62,13 @@ export const useResultStore = defineStore('result', () => {
    * @param {Object} result - 处理结果对象
    */
   function addResult(result) {
-    results.value.push({
+    console.log('[DEBUG] ========== resultStore.addResult ==========')
+    console.log('[DEBUG] 接收到的 result:', JSON.stringify(result, null, 2))
+    console.log('[DEBUG] result.sensitiveInfo:', result.sensitiveInfo)
+    console.log('[DEBUG] result.sensitiveInfo 类型:', typeof result.sensitiveInfo)
+    console.log('[DEBUG] result.sensitiveInfo 长度:', result.sensitiveInfo?.length)
+    
+    const newResult = {
       id: Date.now().toString(),
       fileId: result.fileId,
       fileName: result.fileName,
@@ -72,7 +78,14 @@ export const useResultStore = defineStore('result', () => {
       outputPath: result.outputPath,
       processingTime: result.processingTime,
       createdAt: new Date().toISOString()
-    })
+    }
+    
+    console.log('[DEBUG] 构造的 newResult:', JSON.stringify(newResult, null, 2))
+    
+    results.value.push(newResult)
+    
+    console.log('[DEBUG] 添加后 results.value 长度:', results.value.length)
+    console.log('[DEBUG] 添加后 results.value 最后一条:', results.value[results.value.length - 1])
   }
 
   /**
