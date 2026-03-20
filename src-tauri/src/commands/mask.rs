@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 /// 敏感信息检测结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SensitiveInfo {
     pub id: usize,
     #[serde(rename = "type")]
@@ -28,6 +29,7 @@ pub struct SensitiveInfo {
 
 /// 脱敏处理结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MaskResult {
     pub file_id: String,
     pub file_name: String,

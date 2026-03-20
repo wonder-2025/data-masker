@@ -248,7 +248,7 @@ async function startProcessing() {
         console.log('[DEBUG] result.sensitiveCount:', result.sensitiveCount, typeof result.sensitiveCount)
         console.log('[DEBUG] result.sensitiveInfo:', result.sensitiveInfo, typeof result.sensitiveInfo)
         console.log('[DEBUG] result.sensitiveInfo 长度:', result.sensitiveInfo?.length)
-        console.log('[DEBUG] result.masked_content 存在:', !!result.masked_content)
+        console.log('[DEBUG] result.maskedContent 存在:', !!result.maskedContent)
         console.log('[DEBUG] result.outputPath:', result.outputPath)
         
         // 更新文件状态
@@ -262,7 +262,7 @@ async function startProcessing() {
           fileName: file.name,
           status: 'done',
           sensitiveInfo: result.sensitiveInfo || [],
-          maskedContent: result.masked_content,
+          maskedContent: result.maskedContent,
           outputPath: result.outputPath,
           processingTime: result.processingTime
         }
