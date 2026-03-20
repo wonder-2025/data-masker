@@ -367,6 +367,9 @@ async function selectOutputDir() {
     const selected = await invoke('select_directory')
     if (selected) {
       settingsStore.settingsData.general.outputDir = selected
+      // 立即保存设置，不等待防抖
+      settingsStore.saveSettings()
+      console.log('[Settings] 输出目录已更新并保存:', selected)
     }
   } catch (error) {
     console.error('选择目录失败:', error)
