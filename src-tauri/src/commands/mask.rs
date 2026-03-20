@@ -181,11 +181,17 @@ pub async fn process_file(
     app: tauri::AppHandle,
     file_path: String,
     rules: Vec<Rule>,
+    output_dir: Option<String>,
 ) -> Result<MaskResult, String> {
     use std::time::Instant;
     
     let start_time = Instant::now();
     let input_path = PathBuf::from(&file_path);
+    
+    // DEBUG: 记录传入参数
+    tracing::info!("[DEBUG] process_file called with output_dir: {:?}", output_dir);
+    tracing::info!("[DEBUG] file_path: {}", file_path);
+    tracing::info!("[DEBUG] rules count: {}", rules.len());
     
     // 检查文件是否存在
     if !input_path.exists() {
@@ -212,9 +218,16 @@ pub async fn process_file(
         .map(|r| r.into())
         .collect();
     
+    // DEBUG: 记录内容信息
+    tracing::info!("[DEBUG] Content length: {}", content.content.len());
+    tracing::info!("[DEBUG] Rules count: {}", detector_rules.len());
+    
     // 检测敏感信息
     let detector = crate::services::detector::Detector::new(detector_rules.clone());
     let detections = detector.detect_all(&content.content);
+    
+    // DEBUG: 记录检测结果
+    tracing::info!("[DEBUG] Detections count: {}", detections.len());
     
     // 生成替换列表
     let replacements: Vec<(String, String)> = detections.iter()
@@ -225,11 +238,36 @@ pub async fn process_file(
     let masker = crate::services::masker::Masker::new();
     let masked_content = masker.mask_content(&content.content, &detections);
     
-    // 生成输出路径
-    let output_dir = app.path()
-        .app_data_dir()
-        .map(|p| p.join("output"))
-        .map_err(|e| format!("无法获取输出目录: {}", e))?;
+    // 生成输出路径 - 优先使用用户设置的路径
+    let output_dir = if let Some(ref user_dir) = output_dir {
+        tracing::info!("[DEBUG] user_dir: {}", user_dir);
+        if !user_dir.is_empty() {
+            tracing::info!("[DEBUG] using user output dir: {}", user_dir);
+            let user_path = PathBuf::from(user_dir);
+            // 确保用户指定的目录存在
+            if !user_path.exists() {
+                std::fs::create_dir_all(&user_path)
+                    .map_err(|e| format!("创建用户输出目录失败: {}", e))?;
+            }
+            user_path
+        } else {
+            tracing::info!("[DEBUG] user_dir is empty, using default");
+            // 用户路径为空，使用默认路径
+            app.path()
+                .app_data_dir()
+                .map(|p| p.join("output"))
+                .map_err(|e| format!("无法获取输出目录: {}", e))?
+        }
+    } else {
+        tracing::info!("[DEBUG] output_dir is None, using default");
+        // 未提供用户路径，使用默认路径
+        app.path()
+            .app_data_dir()
+            .map(|p| p.join("output"))
+            .map_err(|e| format!("无法获取输出目录: {}", e))?
+    };
+    
+    tracing::info!("[DEBUG] final output_dir: {:?}", output_dir);
     
     std::fs::create_dir_all(&output_dir)
         .map_err(|e| format!("创建输出目录失败: {}", e))?;
@@ -241,6 +279,11 @@ pub async fn process_file(
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let output_name = format!("{}_masked_{}.{}", file_stem, timestamp, extension);
     let output_path = output_dir.join(&output_name);
+    
+    // DEBUG: 记录输出路径信息
+    tracing::info!("[DEBUG] Output path: {:?}", output_path);
+    tracing::info!("[DEBUG] Extension: {}", extension);
+    tracing::info!("[DEBUG] Replacements count: {}", replacements.len());
     
     // 根据文件类型保存
     let save_result = match extension.as_str() {

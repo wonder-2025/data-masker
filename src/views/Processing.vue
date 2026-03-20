@@ -139,12 +139,14 @@ import { useRouter } from 'vue-router'
 import { useFilesStore } from '@/stores/files'
 import { useRulesStore } from '@/stores/rules'
 import { useResultStore } from '@/stores/result'
+import { useSettingsStore } from '@/stores/settings'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const filesStore = useFilesStore()
 const rulesStore = useRulesStore()
 const resultStore = useResultStore()
+const settingsStore = useSettingsStore()
 
 // 进度状态
 const progress = computed(() => resultStore.progress)
@@ -220,9 +222,17 @@ async function startProcessing() {
       resultStore.addLog('info', `正在处理: ${file.name}`)
       
       try {
+        // 获取用户设置的输出目录
+        console.log('[DEBUG] settingsStore.settingsData:', JSON.stringify(settingsStore.settingsData, null, 2))
+        console.log('[DEBUG] outputDir from settings:', settingsStore.settingsData.general.outputDir)
+        const outputDir = settingsStore.settingsData.general.outputDir || ''
+        console.log('[DEBUG] outputDir to pass:', outputDir)
+        console.log('[DEBUG] outputDir || null:', outputDir || null)
+        
         const result = await invoke('process_file', {
           filePath: file.path,
-          rules: rules
+          rules: rules,
+          outputDir: outputDir || null
         })
         
         // 更新文件状态
