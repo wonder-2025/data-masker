@@ -189,9 +189,17 @@ pub async fn process_file(
     let input_path = PathBuf::from(&file_path);
     
     // DEBUG: 记录传入参数
-    tracing::info!("[DEBUG] process_file called with output_dir: {:?}", output_dir);
+    tracing::info!("[DEBUG] ========== process_file 开始 ==========");
     tracing::info!("[DEBUG] file_path: {}", file_path);
+    tracing::info!("[DEBUG] output_dir: {:?}", output_dir);
     tracing::info!("[DEBUG] rules count: {}", rules.len());
+    
+    // 检查规则内容
+    for (i, rule) in rules.iter().enumerate() {
+        tracing::info!("[DEBUG] Rule {}: id={}, enabled={}, pattern={}", 
+            i, rule.id, rule.enabled, 
+            if rule.pattern.len() > 30 { &rule.pattern[..30] } else { &rule.pattern });
+    }
     
     // 检查文件是否存在
     if !input_path.exists() {
@@ -219,15 +227,34 @@ pub async fn process_file(
         .collect();
     
     // DEBUG: 记录内容信息
-    tracing::info!("[DEBUG] Content length: {}", content.content.len());
+    tracing::info!("[DEBUG] ========== 文件内容检测 ==========");
+    tracing::info!("[DEBUG] Content length: {} bytes", content.content.len());
+    tracing::info!("[DEBUG] Content preview: {}", 
+        if content.content.len() > 200 { &content.content[..200] } else { &content.content });
     tracing::info!("[DEBUG] Rules count: {}", detector_rules.len());
+    
+    // 检查规则是否正确转换
+    for (i, rule) in detector_rules.iter().enumerate() {
+        tracing::info!("[DEBUG] Converted Rule {}: id={}, enabled={}, mode={}", 
+            i, rule.id, rule.enabled, rule.mode);
+    }
     
     // 检测敏感信息
     let detector = crate::services::detector::Detector::new(detector_rules.clone());
     let detections = detector.detect_all(&content.content);
     
     // DEBUG: 记录检测结果
+    tracing::info!("[DEBUG] ========== 检测结果 ==========");
     tracing::info!("[DEBUG] Detections count: {}", detections.len());
+    
+    if detections.is_empty() {
+        tracing::warn!("[DEBUG] ⚠️ 没有检测到敏感信息！");
+        tracing::warn!("[DEBUG] 可能原因: 1) 规则未启用 2) 规则格式错误 3) 内容中无敏感信息");
+    } else {
+        for (i, d) in detections.iter().enumerate() {
+            tracing::info!("[DEBUG] Detection {}: type={}, original={}", i, d.info_type, d.original);
+        }
+    }
     
     // 生成替换列表
     let replacements: Vec<(String, String)> = detections.iter()
@@ -281,7 +308,9 @@ pub async fn process_file(
     let output_path = output_dir.join(&output_name);
     
     // DEBUG: 记录输出路径信息
-    tracing::info!("[DEBUG] Output path: {:?}", output_path);
+    tracing::info!("[DEBUG] ========== 输出处理 ==========");
+    tracing::info!("[DEBUG] Output directory: {:?}", output_dir);
+    tracing::info!("[DEBUG] Output file path: {:?}", output_path);
     tracing::info!("[DEBUG] Extension: {}", extension);
     tracing::info!("[DEBUG] Replacements count: {}", replacements.len());
     
@@ -351,13 +380,19 @@ pub async fn process_file(
     
     // 检查保存结果
     if let Err(e) = save_result {
-        tracing::error!("保存文件失败: {}", e);
+        tracing::error!("[DEBUG] ❌ 保存文件失败: {}", e);
         return Err(e);
     }
     
     // 验证输出文件
     if !output_path.exists() {
+        tracing::error!("[DEBUG] ❌ 输出文件创建失败: {:?}", output_path);
         return Err(format!("输出文件创建失败: {:?}", output_path));
+    }
+    
+    // 获取输出文件大小
+    if let Ok(metadata) = std::fs::metadata(&output_path) {
+        tracing::info!("[DEBUG] ✅ 输出文件创建成功: {:?} ({} bytes)", output_path, metadata.len());
     }
     
     // 计算处理时间

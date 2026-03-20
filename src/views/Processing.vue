@@ -222,12 +222,14 @@ async function startProcessing() {
       resultStore.addLog('info', `正在处理: ${file.name}`)
       
       try {
-        // 获取用户设置的输出目录
-        console.log('[DEBUG] settingsStore.settingsData:', JSON.stringify(settingsStore.settingsData, null, 2))
-        console.log('[DEBUG] outputDir from settings:', settingsStore.settingsData.general.outputDir)
-        const outputDir = settingsStore.settingsData.general.outputDir || ''
-        console.log('[DEBUG] outputDir to pass:', outputDir)
-        console.log('[DEBUG] outputDir || null:', outputDir || null)
+        // 获取用户设置的输出目录 - 确保从最新设置中读取
+        const outputDir = settingsStore.settingsData?.general?.outputDir || ''
+        console.log('[DEBUG] Output directory from settings:', outputDir)
+        console.log('[DEBUG] Full settings:', JSON.stringify(settingsStore.settingsData, null, 2))
+        
+        // 规则检查 - 确保规则正确传递
+        console.log('[DEBUG] Rules to process:', rules.length, 'rules')
+        console.log('[DEBUG] First rule sample:', rules[0] ? JSON.stringify(rules[0], null, 2) : 'No rules')
         
         const result = await invoke('process_file', {
           filePath: file.path,
@@ -334,7 +336,10 @@ function getLogIcon(level) {
 }
 
 // 组件挂载时开始处理
-onMounted(() => {
+onMounted(async () => {
+  // 等待设置加载完成
+  await settingsStore.loadSettings()
+  console.log('[DEBUG] Settings loaded:', settingsStore.settingsData.general.outputDir)
   startProcessing()
 })
 
