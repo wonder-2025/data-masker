@@ -222,8 +222,20 @@ pub async fn process_file(
     // 读取文件内容
     let content = crate::commands::file::read_file_content(file_path.clone()).await?;
     
+    // 安全检查：只使用已启用的规则（双重保险）
+    let enabled_rules: Vec<Rule> = rules.into_iter()
+        .filter(|r| r.enabled)
+        .collect();
+    
+    tracing::info!("[DEBUG] 过滤后的启用规则数量: {}", enabled_rules.len());
+    
+    // 检查是否有启用的规则
+    if enabled_rules.is_empty() {
+        return Err("没有启用的脱敏规则，请先在规则配置中启用至少一条规则".to_string());
+    }
+    
     // 转换规则
-    let detector_rules: Vec<crate::services::detector::Rule> = rules
+    let detector_rules: Vec<crate::services::detector::Rule> = enabled_rules
         .into_iter()
         .map(|r| r.into())
         .collect();

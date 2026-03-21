@@ -374,9 +374,41 @@ async function downloadFile(result) {
   
   try {
     const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('open_file_location', { path: result.outputPath })
+    
+    // 调用后端读取文件并返回Base64
+    const response = await invoke('read_file_base64', { path: result.outputPath })
+    const fileData = JSON.parse(response)
+    
+    // 将Base64转换为Blob并下载
+    const byteCharacters = atob(fileData.data)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: fileData.mimeType })
+    
+    // 创建下载链接并触发下载
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileData.fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    ElMessage.success('文件下载成功')
   } catch (error) {
-    ElMessage.error('打开文件失败: ' + (error.message || error))
+    console.error('下载失败:', error)
+    // 如果下载失败，回退到打开文件位置
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('open_file_location', { path: result.outputPath })
+      ElMessage.info('已打开文件所在目录，请手动复制文件')
+    } catch (e) {
+      ElMessage.error('下载文件失败: ' + (error.message || error))
+    }
   }
 }
 

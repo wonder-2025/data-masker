@@ -97,6 +97,7 @@ pub fn run() {
             commands::file::open_output_directory,
             commands::file::clear_temp_files,
             commands::file::scan_folder,
+            commands::file::read_file_base64,
             
             // 脱敏处理
             commands::mask::detect_sensitive,

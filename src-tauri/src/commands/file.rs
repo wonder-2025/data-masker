@@ -714,3 +714,50 @@ pub async fn scan_folder(path: String) -> Result<Vec<FileInfo>, String> {
     
     Ok(files)
 }
+
+/// 读取文件并返回Base64编码（用于下载）
+#[command]
+pub async fn read_file_base64(path: String) -> Result<String, String> {
+    let file_path = validate_user_path(&path)?;
+    
+    // 读取文件
+    let bytes = std::fs::read(&file_path)
+        .map_err(|e| format!("读取文件失败: {}", e))?;
+    
+    // 转换为Base64
+    use base64::{Engine as _, engine::general_purpose};
+    let base64_data = general_purpose::STANDARD.encode(&bytes);
+    
+    // 获取文件名
+    let file_name = file_path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("download")
+        .to_string();
+    
+    // 返回包含文件名和Base64数据的JSON
+    let result = serde_json::json!({
+        "fileName": file_name,
+        "data": base64_data,
+        "mimeType": get_mime_type(&file_name)
+    });
+    
+    Ok(result.to_string())
+}
+
+/// 根据文件扩展名获取MIME类型
+fn get_mime_type(file_name: &str) -> String {
+    let ext = file_name.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "pdf" => "application/pdf",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "xls" => "application/vnd.ms-excel",
+        "txt" => "text/plain",
+        "md" => "text/markdown",
+        "csv" => "text/csv",
+        "json" => "application/json",
+        "xml" => "application/xml",
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        _ => "application/octet-stream",
+    }.to_string()
+}
