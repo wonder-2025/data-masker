@@ -16,13 +16,13 @@
         :sub-title="overviewText"
       >
         <template #extra>
-          <el-button type="primary" @click="exportAll">
-            <el-icon><Download /></el-icon>
-            导出全部文件
-          </el-button>
-          <el-button @click="openOutputDir">
+          <el-button type="primary" @click="openOutputDir">
             <el-icon><FolderOpened /></el-icon>
             打开输出目录
+          </el-button>
+          <el-button @click="startNew">
+            <el-icon><RefreshRight /></el-icon>
+            开始新任务
           </el-button>
         </template>
       </el-result>

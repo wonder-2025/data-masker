@@ -392,10 +392,21 @@ export const useRulesStore = defineStore('rules', () => {
    */
   function saveToStorage() {
     try {
-      localStorage.setItem('data-masker-rules', JSON.stringify({
+      const dataToSave = {
         builtin: builtinRulesList.value,
-        custom: customRules.value
-      }))
+        custom: customRules.value,
+        savedAt: new Date().toISOString()
+      }
+      localStorage.setItem('data-masker-rules', JSON.stringify(dataToSave))
+      console.log('[规则保存] 已保存', dataToSave.builtin.length + dataToSave.custom.length, '条规则')
+      
+      // 调试：验证保存的数据
+      const saved = localStorage.getItem('data-masker-rules')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        const enabledCount = parsed.builtin.filter(r => r.enabled).length + parsed.custom.filter(r => r.enabled).length
+        console.log('[规则保存] 启用的规则数量:', enabledCount)
+      }
     } catch (e) {
       console.error('保存规则失败:', e)
       if (e.name === 'QuotaExceededError') {
@@ -414,12 +425,19 @@ export const useRulesStore = defineStore('rules', () => {
       const saved = localStorage.getItem('data-masker-rules')
       if (saved) {
         const data = JSON.parse(saved)
+        console.log('[规则加载] 原始数据keys:', Object.keys(data))
+        
         if (data.builtin && Array.isArray(data.builtin)) {
           builtinRulesList.value = data.builtin
+          const enabledCount = data.builtin.filter(r => r.enabled).length
+          console.log('[规则加载] 已加载', data.builtin.length, '条内置规则，其中', enabledCount, '条启用')
         }
         if (data.custom && Array.isArray(data.custom)) {
           customRules.value = data.custom
+          console.log('[规则加载] 已加载', data.custom.length, '条自定义规则')
         }
+      } else {
+        console.log('[规则加载] 没有找到保存的规则，使用默认配置')
       }
     } catch (e) {
       console.error('加载规则失败:', e)

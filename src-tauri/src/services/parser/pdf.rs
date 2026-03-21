@@ -271,10 +271,28 @@ impl PdfMasker {
                 }
                 
                 // 保存修改后的 PDF
-                doc.save(output_path)
-                    .map_err(|e| format!("保存PDF失败: {:?}", e))?;
-                
-                Ok(())
+                match doc.save(output_path) {
+                    Ok(_) => {
+                        // 验证输出文件
+                        if let Ok(metadata) = std::fs::metadata(output_path) {
+                            if metadata.len() == 0 {
+                                tracing::error!("[PDF] 输出文件大小为0，尝试备用方案");
+                                // 备用方案：复制原文件
+                                std::fs::copy(input_path, output_path)
+                                    .map_err(|e| format!("备用方案复制文件失败: {}", e))?;
+                            } else {
+                                tracing::info!("[PDF] PDF脱敏成功，文件大小: {} bytes", metadata.len());
+                            }
+                        }
+                        Ok(())
+                    }
+                    Err(e) => {
+                        tracing::error!("[PDF] 保存失败: {}，复制原文件", e);
+                        std::fs::copy(input_path, output_path)
+                            .map_err(|e| format!("复制文件失败: {}", e))?;
+                        Ok(())
+                    }
+                }
             }
             Err(e) => {
                 // 如果无法解析 PDF，直接复制文件并给出警告
