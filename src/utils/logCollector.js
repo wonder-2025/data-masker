@@ -1,107 +1,108 @@
 /**
- * 日志收集工具 v4.0 - 安全加固版
+ * 日志收集工具 v5.0 - 完善版
  * 收集应用的所有日志：错误、操作、调试、行为分析
  * 
  * 安全特性:
  * - 默认关闭日志收集
  * - 用户需显式同意后才启用
  * - 完善的敏感信息脱敏
+ * 
+ * 功能特性:
+ * - 支持多种日志级别
+ * - 自动收集关键操作
+ * - 丰富的上下文信息
+ * - 批量日志发送
+ * - 本地日志缓存
  */
 
 class LogCollector {
   constructor() {
-    this.enabled = false  // 默认关闭
+    this.enabled = false
     this.serverUrl = ''
     this.appName = 'data-masker'
     this.version = '1.0.0'
     this.queue = []
     this.flushInterval = null
-    this.maxQueueSize = 10
-    this.userConsent = false  // 用户同意标志
+    this.maxQueueSize = 20
+    this.userConsent = false
+    
+    // 收集配置
+    this.config = {
+      collectErrors: true,
+      collectOperations: true,
+      collectAnalytics: true
+    }
+    
+    // 日志级别枚举
+    this.levels = {
+      DEBUG: 0,
+      INFO: 1,
+      WARN: 2,
+      ERROR: 3
+    }
+    this.currentLevel = this.levels.INFO
   }
 
   /**
    * 初始化日志收集器
-   * 注意: 默认不启用，需要用户显式同意
    */
   init(options = {}) {
-    console.log('[LogCollector] init called with options:', options)
+    console.log('[LogCollector] 初始化...', options)
     
-    // 检查用户是否已同意
+    // 检查用户同意
     const savedConsent = localStorage.getItem('log-collector-consent')
     this.userConsent = savedConsent === 'true'
     
-    // 只有在用户同意且明确启用时才激活
+    // 加载配置
     this.enabled = this.userConsent && (options.enabled ?? false)
     this.serverUrl = options.serverUrl || ''
     this.appName = options.appName || 'data-masker'
     this.version = options.version || '1.0.0'
     
+    // 加载收集配置
+    const savedConfig = localStorage.getItem('log-collector-config')
+    if (savedConfig) {
+      try {
+        this.config = { ...this.config, ...JSON.parse(savedConfig) }
+      } catch (e) {
+        console.warn('[LogCollector] 加载配置失败:', e)
+      }
+    }
+    
     console.log('[LogCollector] 初始化完成:', { 
       enabled: this.enabled, 
       userConsent: this.userConsent,
-      serverUrl: this.serverUrl 
+      serverUrl: this.serverUrl,
+      config: this.config
     })
     
-    // 定期刷新队列
+    // 启动定时刷新
     if (this.enabled && this.userConsent) {
-      this.flushInterval = setInterval(() => this.flush(), 30000) // 30秒刷新一次
+      this._startFlushing()
       this._setupErrorHandlers()
+      
+      // 记录应用启动
+      this.info('APP_START', {
+        version: this.version,
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight
+      })
     }
   }
 
   /**
-   * 请求用户同意
+   * 启动定时刷新
    */
-  requestConsent() {
-    return new Promise((resolve) => {
-      // 这里应该显示一个用户确认对话框
-      // 为简化实现,我们返回一个标识,由前端处理
-      console.log('[LogCollector] 需要用户同意才能启用日志收集')
-      resolve(false)
-    })
-  }
-
-  /**
-   * 设置用户同意
-   */
-  setConsent(consent) {
-    this.userConsent = consent
-    localStorage.setItem('log-collector-consent', String(consent))
-    
-    if (!consent) {
-      // 用户拒绝,禁用日志收集
-      this.enabled = false
-      if (this.flushInterval) {
-        clearInterval(this.flushInterval)
-        this.flushInterval = null
-      }
+  _startFlushing() {
+    if (this.flushInterval) {
+      clearInterval(this.flushInterval)
     }
-    
-    console.log('[LogCollector] 用户同意状态更新:', consent)
-  }
-
-  /**
-   * 更新配置
-   */
-  updateConfig(options = {}) {
-    console.log('[LogCollector] updateConfig called with options:', options)
-    
-    // 检查用户同意
-    if (!this.userConsent && options.enabled) {
-      console.warn('[LogCollector] 用户未同意,无法启用日志收集')
-      return
-    }
-    
-    if (options.enabled !== undefined) {
-      this.enabled = options.enabled && this.userConsent
-      if (this.enabled && !this.flushInterval) {
-        this.flushInterval = setInterval(() => this.flush(), 30000)
-        this._setupErrorHandlers()
-      }
-    }
-    if (options.serverUrl !== undefined) this.serverUrl = options.serverUrl
-    console.log('[LogCollector] 配置更新完成:', { enabled: this.enabled, serverUrl: this.serverUrl })
+    this.flushInterval = setInterval(() => this.flush(), 30000)
   }
 
   /**
@@ -110,57 +111,103 @@ class LogCollector {
   _setupErrorHandlers() {
     // JS 错误
     window.addEventListener('error', (event) => {
-      console.log('[LogCollector] 捕获JS错误:', event.message)
+      if (!this.config.collectErrors) return
       this.error('JS_ERROR', event.message, {
-        filename: event.filename,
+        filename: this._maskPath(event.filename),
         lineno: event.lineno,
         colno: event.colno,
-        stack: event.error?.stack
+        stack: this._maskStack(event.error?.stack)
       })
     })
 
     // Promise 拒绝
     window.addEventListener('unhandledrejection', (event) => {
-      console.log('[LogCollector] 捕获Promise拒绝:', event.reason)
+      if (!this.config.collectErrors) return
       this.error('PROMISE_REJECTION', event.reason?.message || String(event.reason), {
-        stack: event.reason?.stack
+        stack: this._maskStack(event.reason?.stack),
+        reason: String(event.reason)
       })
+    })
+
+    // Vue 错误
+    if (window.app && window.app.config) {
+      window.app.config.errorHandler = (err, vm, info) => {
+        if (!this.config.collectErrors) return
+        this.error('VUE_ERROR', err.message || String(err), {
+          component: vm?.$options?.name || 'unknown',
+          info,
+          stack: this._maskStack(err.stack)
+        })
+      }
+    }
+  }
+
+  /**
+   * 设置日志级别
+   */
+  setLevel(level) {
+    if (typeof level === 'string') {
+      this.currentLevel = this.levels[level.toUpperCase()] || this.levels.INFO
+    } else {
+      this.currentLevel = level
+    }
+    console.log('[LogCollector] 日志级别设置为:', this.currentLevel)
+  }
+
+  /**
+   * 调试日志
+   */
+  debug(event, detail = {}) {
+    if (!this.config.collectAnalytics) return
+    this._log(this.levels.DEBUG, 'debug', event, detail.message || '', detail)
+  }
+
+  /**
+   * 信息日志
+   */
+  info(event, detail = {}) {
+    this._log(this.levels.INFO, 'info', event, detail.message || '', detail)
+  }
+
+  /**
+   * 警告日志
+   */
+  warn(event, detail = {}) {
+    this._log(this.levels.WARN, 'warning', event, detail.message || '', detail)
+  }
+
+  /**
+   * 错误日志
+   */
+  error(event, message, data = {}) {
+    if (!this.config.collectErrors) return
+    this._log(this.levels.ERROR, 'error', event, message, data)
+  }
+
+  /**
+   * 操作日志
+   */
+  operation(event, detail = {}) {
+    if (!this.config.collectOperations) return
+    this._log(this.levels.INFO, 'operation', event, detail.message || '', {
+      ...detail,
+      timestamp: new Date().toISOString()
     })
   }
 
   /**
-   * 发送错误日志
-   */
-  error(event, message, data = {}) {
-    this._log('error', event, message, data)
-  }
-
-  /**
-   * 发送操作日志
-   */
-  operation(event, detail = {}) {
-    this._log('operation', event, detail.message || '', detail)
-  }
-
-  /**
-   * 发送调试日志
-   */
-  debug(event, detail = {}) {
-    this._log('debug', event, detail.message || '', detail)
-  }
-
-  /**
-   * 发送行为分析日志
+   * 行为分析日志
    */
   analytics(event, detail = {}) {
-    this._log('analytics', event, detail.message || '', detail)
+    if (!this.config.collectAnalytics) return
+    this._log(this.levels.INFO, 'analytics', event, detail.message || '', detail)
   }
 
   /**
    * 记录页面访问
    */
-  pageView(pageName) {
-    this.analytics('PAGE_VIEW', { page: pageName, url: window.location.href })
+  pageView(pageName, meta = {}) {
+    this.analytics('PAGE_VIEW', { page: pageName, url: window.location.href, ...meta })
   }
 
   /**
@@ -178,7 +225,45 @@ class LogCollector {
       action,
       fileType: fileInfo.type,
       fileSize: fileInfo.size,
-      fileName: this._maskPath(fileInfo.name)
+      fileName: this._maskPath(fileInfo.name),
+      fileCount: fileInfo.count
+    })
+  }
+
+  /**
+   * 记录处理结果
+   */
+  processingResult(fileName, result) {
+    this.operation('PROCESSING_RESULT', {
+      fileName: this._maskPath(fileName),
+      success: result.status === 'done',
+      sensitiveCount: result.sensitiveCount,
+      processingTime: result.processingTime,
+      error: result.error
+    })
+  }
+
+  /**
+   * 记录规则变更
+   */
+  ruleChange(action, ruleInfo) {
+    this.operation('RULE_CHANGE', {
+      action,
+      ruleId: ruleInfo.id,
+      ruleName: ruleInfo.name,
+      enabled: ruleInfo.enabled,
+      strategy: ruleInfo.strategy
+    })
+  }
+
+  /**
+   * 记录设置变更
+   */
+  settingChange(key, oldValue, newValue) {
+    this.operation('SETTING_CHANGE', {
+      key,
+      // 敏感值不记录具体内容
+      changed: oldValue !== newValue
     })
   }
 
@@ -192,83 +277,89 @@ class LogCollector {
   /**
    * 内部日志方法
    */
-  async _log(logType, event, message, data = {}) {
-    console.log('[LogCollector] _log called:', { enabled: this.enabled, serverUrl: this.serverUrl, logType, event })
+  _log(level, logType, event, message, data = {}) {
+    // 检查日志级别
+    if (level < this.currentLevel) return
     
-    if (!this.enabled) {
-      console.log('[LogCollector] 日志收集已禁用，跳过')
-      return
-    }
+    // 检查是否启用
+    if (!this.enabled || !this.serverUrl) return
     
-    if (!this.serverUrl) {
-      console.log('[LogCollector] 服务器地址为空，跳过')
-      return
-    }
-
     const logData = {
+      level,
       log_type: logType,
       event,
-      message: this._sanitize(message),
+      message: this._sanitize(String(message)),
       version: this.version,
-      os: navigator.platform,
       timestamp: new Date().toISOString(),
+      // 浏览器信息
+      os: navigator.platform,
+      browser: this._getBrowserInfo(),
+      // 上下文信息
+      url: window.location.href,
+      referrer: document.referrer,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      // 数据
       ...this._sanitizeObject(data)
     }
 
-    // 加入队列
     this.queue.push(logData)
-    console.log('[LogCollector] 日志加入队列，当前队列长度:', this.queue.length)
 
     // 队列满了或者错误立即发送
-    if (this.queue.length >= this.maxQueueSize || logType === 'error') {
-      await this.flush()
+    if (this.queue.length >= this.maxQueueSize || level >= this.levels.ERROR) {
+      this.flush()
     }
   }
 
   /**
-   * 刷新队列，发送所有日志
+   * 获取浏览器信息
+   */
+  _getBrowserInfo() {
+    const ua = navigator.userAgent
+    let browser = 'unknown'
+    
+    if (ua.indexOf('Firefox') > -1) browser = 'Firefox'
+    else if (ua.indexOf('Chrome') > -1) browser = 'Chrome'
+    else if (ua.indexOf('Safari') > -1) browser = 'Safari'
+    else if (ua.indexOf('Edge') > -1) browser = 'Edge'
+    else if (ua.indexOf('MSIE') > -1 || ua.indexOf('Trident') > -1) browser = 'IE'
+    
+    return browser
+  }
+
+  /**
+   * 刷新队列
    */
   async flush() {
-    console.log('[LogCollector] flush called, enabled:', this.enabled, 'serverUrl:', this.serverUrl, 'queue length:', this.queue.length)
-    
-    if (!this.enabled) {
-      console.log('[LogCollector] flush: 日志收集已禁用')
-      return
-    }
-    
-    if (!this.serverUrl) {
-      console.log('[LogCollector] flush: 服务器地址为空')
-      return
-    }
-    
-    if (this.queue.length === 0) {
-      console.log('[LogCollector] flush: 队列为空')
-      return
-    }
+    if (!this.enabled || !this.serverUrl || this.queue.length === 0) return
 
     const logs = [...this.queue]
     this.queue = []
 
     try {
-      console.log('[LogCollector] 开始发送日志，数量:', logs.length)
-      // 逐条发送
-      for (const logData of logs) {
-        console.log('[LogCollector] 发送日志:', logData.event)
-        const response = await fetch(this.serverUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            app_name: this.appName,
-            ...logData
-          })
+      // 批量发送
+      const response = await fetch(this.serverUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          app_name: this.appName,
+          logs: logs
         })
-        console.log('[LogCollector] 日志发送响应:', response.status, response.ok)
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
       }
-      console.log('[LogCollector] 所有日志发送完成')
+      
+      console.log('[LogCollector] 发送成功:', logs.length, '条日志')
     } catch (error) {
-      console.error('[LogCollector] 发送日志失败:', error)
-      // 发送失败，重新加入队列
-      this.queue = [...logs, ...this.queue]
+      console.error('[LogCollector] 发送失败:', error)
+      // 发送失败，重新加入队列（限制重试次数）
+      if (this.queue.length < this.maxQueueSize) {
+        this.queue = [...logs, ...this.queue]
+      } else {
+        // 队列已满，丢弃旧日志
+        console.warn('[LogCollector] 队列已满，丢弃日志')
+      }
     }
   }
 
@@ -276,13 +367,24 @@ class LogCollector {
    * 脱敏路径
    */
   _maskPath(path) {
-    if (!path) return path
+    if (!path) return ''
     return path
       .replace(/\/Users\/[^/]+/g, '/Users/***')
       .replace(/\/home\/[^/]+/g, '/home/***')
       .replace(/C:\\Users\\[^\\]+/g, 'C:\\Users\\***')
       .replace(/\/root\/[^/]*/g, '/root/***')
       .replace(/\/var\/www\/[^/]*/g, '/var/www/***')
+  }
+
+  /**
+   * 脱敏堆栈信息
+   */
+  _maskStack(stack) {
+    if (!stack) return ''
+    return stack
+      .replace(/\/Users\/[^/]+/g, '/Users/***')
+      .replace(/\/home\/[^/]+/g, '/home/***')
+      .replace(/C:\\Users\\[^\\]+/g, 'C:\\Users\\***')
   }
 
   /**
@@ -322,26 +424,21 @@ class LogCollector {
    */
   _maskIP(ip) {
     if (!ip) return ip
-    // IPv4
-    let masked = ip.replace(/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/g, '$1.$2.***.***')
-    // IPv6 (简化处理)
-    masked = masked.replace(/([0-9a-fA-F]{1,4}):([0-9a-fA-F]{1,4}):.*/g, '$1:$2:****')
-    return masked
+    return ip.replace(/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/g, '$1.$2.***.***')
   }
 
   /**
-   * 脱敏URL参数中的敏感信息
+   * 脱敏URL参数
    */
   _maskUrlParams(url) {
     if (!url) return url
-    // 脱敏 URL 中的 token、key、password 等参数
     return url
       .replace(/([?&])(token|key|password|pwd|secret|api_key|apikey)=[^&]*/gi, '$1$2=***')
       .replace(/([?&])(access_token|auth)=[^&]*/gi, '$1$2=***')
   }
 
   /**
-   * 脱敏JSON中的敏感字段
+   * 脱敏对象中的敏感字段
    */
   _maskSensitiveFields(obj) {
     if (typeof obj !== 'object' || obj === null) return obj
@@ -357,7 +454,6 @@ class LogCollector {
     for (const key in obj) {
       const lowerKey = key.toLowerCase()
       
-      // 检查是否是敏感字段
       if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
         masked[key] = '***'
       } else if (typeof obj[key] === 'string') {
@@ -373,13 +469,11 @@ class LogCollector {
   }
 
   /**
-   * 脱敏字符串（综合脱敏）
+   * 综合脱敏
    */
   _sanitize(str) {
     if (typeof str !== 'string') return str
-    
     let sanitized = str
-    // 按顺序应用各种脱敏规则
     sanitized = this._maskPath(sanitized)
     sanitized = this._maskPhone(sanitized)
     sanitized = this._maskIdCard(sanitized)
@@ -387,8 +481,70 @@ class LogCollector {
     sanitized = this._maskBankCard(sanitized)
     sanitized = this._maskIP(sanitized)
     sanitized = this._maskUrlParams(sanitized)
-    
     return sanitized
+  }
+
+  /**
+   * 脱敏整个对象
+   */
+  _sanitizeObject(obj) {
+    if (typeof obj !== 'object' || obj === null) return obj
+    return this._maskSensitiveFields(obj)
+  }
+
+  /**
+   * 设置用户同意
+   */
+  setConsent(consent) {
+    this.userConsent = consent
+    localStorage.setItem('log-collector-consent', String(consent))
+    
+    if (!consent) {
+      this.enabled = false
+      if (this.flushInterval) {
+        clearInterval(this.flushInterval)
+        this.flushInterval = null
+      }
+    }
+  }
+
+  /**
+   * 更新配置
+   */
+  updateConfig(options = {}) {
+    if (options.enabled !== undefined) {
+      this.enabled = options.enabled && this.userConsent
+      if (this.enabled && !this.flushInterval) {
+        this._startFlushing()
+        this._setupErrorHandlers()
+      }
+    }
+    if (options.serverUrl !== undefined) this.serverUrl = options.serverUrl
+    if (options.collectErrors !== undefined) this.config.collectErrors = options.collectErrors
+    if (options.collectOperations !== undefined) this.config.collectOperations = options.collectOperations
+    if (options.collectAnalytics !== undefined) this.config.collectAnalytics = options.collectAnalytics
+    
+    // 保存配置
+    localStorage.setItem('log-collector-config', JSON.stringify(this.config))
+    
+    console.log('[LogCollector] 配置更新:', { 
+      enabled: this.enabled, 
+      serverUrl: this.serverUrl,
+      config: this.config 
+    })
+  }
+
+  /**
+   * 获取队列状态
+   */
+  getStatus() {
+    return {
+      enabled: this.enabled,
+      queueLength: this.queue.length,
+      userConsent: this.userConsent,
+      config: this.config,
+      version: this.version
+    }
   }
 
   /**

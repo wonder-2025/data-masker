@@ -211,17 +211,26 @@
           <h3>收集的数据类型</h3>
           <el-form label-width="140px">
             <el-form-item label="错误日志">
-              <el-switch v-model="settingsStore.settingsData.errorReport.collectErrors" />
+              <el-switch 
+                v-model="settingsStore.settingsData.errorReport.collectErrors" 
+                @change="handleCollectConfigChange" 
+              />
               <div class="form-tip">JS异常、API失败等错误信息</div>
             </el-form-item>
             
             <el-form-item label="操作日志">
-              <el-switch v-model="settingsStore.settingsData.errorReport.collectOperations" />
+              <el-switch 
+                v-model="settingsStore.settingsData.errorReport.collectOperations" 
+                @change="handleCollectConfigChange" 
+              />
               <div class="form-tip">文件选择、处理、导出等操作</div>
             </el-form-item>
             
             <el-form-item label="行为分析">
-              <el-switch v-model="settingsStore.settingsData.errorReport.collectAnalytics" />
+              <el-switch 
+                v-model="settingsStore.settingsData.errorReport.collectAnalytics" 
+                @change="handleCollectConfigChange" 
+              />
               <div class="form-tip">页面访问、功能使用频率</div>
             </el-form-item>
           </el-form>
@@ -293,15 +302,31 @@ const testResult = ref(null)
 
 // 日志收集开关变化
 function handleLogCollectorChange(enabled) {
+  const errorReport = settingsStore.settingsData.errorReport
   logCollector.updateConfig({
     enabled,
-    serverUrl: settingsStore.settingsData.errorReport.serverUrl
+    serverUrl: errorReport.serverUrl,
+    collectErrors: errorReport.collectErrors ?? true,
+    collectOperations: errorReport.collectOperations ?? true,
+    collectAnalytics: errorReport.collectAnalytics ?? true
   })
   if (enabled) {
     ElMessage.success('日志收集已启用')
   } else {
     ElMessage.info('日志收集已禁用')
   }
+}
+
+// 收集配置变化
+function handleCollectConfigChange() {
+  const errorReport = settingsStore.settingsData.errorReport
+  logCollector.updateConfig({
+    enabled: errorReport.enabled,
+    serverUrl: errorReport.serverUrl,
+    collectErrors: errorReport.collectErrors ?? true,
+    collectOperations: errorReport.collectOperations ?? true,
+    collectAnalytics: errorReport.collectAnalytics ?? true
+  })
 }
 
 // 测试连接
