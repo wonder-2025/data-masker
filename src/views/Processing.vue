@@ -237,6 +237,11 @@ async function startProcessing() {
         console.log('[DEBUG] 输出目录:', outputDir)
         console.log('[DEBUG] 规则数量:', rules.length)
         
+        // 检查所有规则的 enabled 状态
+        const allEnabled = rules.every(r => r.enabled)
+        console.log('[DEBUG] 所有规则enabled状态:', allEnabled)
+        console.log('[DEBUG] 规则详情:', rules.map(r => ({ id: r.id, enabled: r.enabled })))
+        
         const result = await invoke('process_file', {
           filePath: file.path,
           rules: rules,

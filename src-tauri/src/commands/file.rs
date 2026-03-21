@@ -160,9 +160,8 @@ pub async fn select_files(app: tauri::AppHandle) -> Result<Vec<FileInfo>, String
     let paths = app.dialog()
         .file()
         .add_filter("支持的文件", &[
-            "pdf", "docx", "xlsx", "xls", 
-            "txt", "md", "csv", "json", "xml", "pptx"
-            // 注意: 移除了 .doc 格式，因为不支持旧版 Word 格式
+            "pdf", "docx", "pptx"
+            // 只支持 Word、PPT、PDF 三种格式
         ])
         .blocking_pick_files();
     
@@ -676,10 +675,9 @@ pub async fn scan_folder(path: String) -> Result<Vec<FileInfo>, String> {
         return Err("指定路径不是文件夹".to_string());
     }
     
-    // 注意: 移除了 "doc" 格式
+    // 只支持 Word、PPT、PDF 三种格式
     let supported_extensions = [
-        "pdf", "docx", "xlsx", "xls", 
-        "txt", "md", "csv", "json", "xml", "pptx"
+        "pdf", "docx", "pptx"
     ];
     
     let mut files = Vec::new();
