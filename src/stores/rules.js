@@ -261,12 +261,17 @@ export const useRulesStore = defineStore('rules', () => {
   )
   
   // 规则统计
-  const ruleStats = computed(() => ({
-    builtinTotal: builtinRulesList.value.length,
-    builtinEnabled: builtinRulesList.value.filter(r => r.enabled).length,
-    customTotal: customRules.value.length,
-    customEnabled: customRules.value.filter(r => r.enabled).length
-  }))
+  const ruleStats = computed(() => {
+    const builtinEnabled = builtinRulesList.value.filter(r => r.enabled).length
+    const customEnabled = customRules.value.filter(r => r.enabled).length
+    return {
+      builtinTotal: builtinRulesList.value.length,
+      builtinEnabled,
+      customTotal: customRules.value.length,
+      customEnabled,
+      totalEnabled: builtinEnabled + customEnabled
+    }
+  })
   
   /**
    * 切换规则启用状态
