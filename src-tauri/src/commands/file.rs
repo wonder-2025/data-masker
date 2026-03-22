@@ -548,17 +548,42 @@ fn read_docx_preview(path: &PathBuf) -> Result<String, String> {
     }
 }
 
-/// 从 Word XML 中提取文本
+/// 从 Word XML 中提取文本 - 使用安全的字符串操作
 fn extract_text_from_docx_xml(xml: &str) -> String {
-    use regex::Regex;
+    let mut results = Vec::new();
+    let mut search_pos = 0;
+    const MAX_MATCHES: usize = 10000;
+    const MAX_TEXT_LEN: usize = 2000;
     
-    let re = Regex::new(r"<w:t[^>]*>([^<]+)</w:t>").unwrap();
-    let texts: Vec<&str> = re.captures_iter(xml)
-        .filter_map(|cap| cap.get(1))
-        .map(|m| m.as_str())
-        .collect();
+    while results.len() < MAX_MATCHES {
+        match xml[search_pos..].find("<w:t") {
+            Some(start_idx) => {
+                // 找到 > 来确定标签结束
+                match xml[search_pos + start_idx..].find('>') {
+                    Some(tag_end) => {
+                        let content_start = search_pos + start_idx + tag_end + 1;
+                        match xml[content_start..].find("</w:t>") {
+                            Some(end_idx) => {
+                                let text = &xml[content_start..content_start + end_idx];
+                                let truncated = if text.len() > MAX_TEXT_LEN {
+                                    &text[..MAX_TEXT_LEN]
+                                } else {
+                                    text
+                                };
+                                results.push(truncated.to_string());
+                                search_pos = content_start + end_idx;
+                            }
+                            None => break,
+                        }
+                    }
+                    None => break,
+                }
+            }
+            None => break,
+        }
+    }
     
-    texts.join("")
+    results.join("")
 }
 
 /// 读取 Excel 文件预览
@@ -612,8 +637,18 @@ fn read_excel_workbook<R: std::io::Read + std::io::Seek>(workbook: &mut impl cal
     }
 }
 
-/// 读取 PowerPoint 文件预览
+/// 读取 PowerPoint 文件预览 - 带崩溃保护
 fn read_pptx_preview(path: &PathBuf) -> Result<String, String> {
+    // 使用 catch_unwind 防止崩溃
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        read_pptx_preview_inner(path)
+    })).map_err(|e| {
+        tracing::error!("[PPT] 预览崩溃: {:?}", e);
+        "文件预览失败，可能是文件格式不兼容或文件已损坏".to_string()
+    })
+}
+
+fn read_pptx_preview_inner(path: &PathBuf) -> Result<String, String> {
     use std::io::Read;
     use zip::ZipArchive;
     use std::time::{Duration, Instant};
