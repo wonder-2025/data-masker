@@ -630,6 +630,13 @@ fn read_pptx_preview(path: &PathBuf) -> Result<String, String> {
             format!("打开文件失败: {}", e)
         })?;
     
+    // 限制文件大小
+    let metadata = file.metadata().map_err(|e| format!("获取文件信息失败: {}", e))?;
+    const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB
+    if metadata.len() > MAX_FILE_SIZE {
+        return Err(format!("文件过大 ({}MB)，最大支持 100MB", metadata.len() / 1024 / 1024));
+    }
+    
     let mut archive = ZipArchive::new(file)
         .map_err(|e| {
             tracing::error!("[PPT] 解析ZIP失败: {}", e);
@@ -700,12 +707,36 @@ fn read_pptx_preview(path: &PathBuf) -> Result<String, String> {
 fn extract_text_from_pptx_xml(xml: &str) -> String {
     use regex::Regex;
     
-    // 匹配 <a:t> 标签中的文本
-    let re = Regex::new(r"<a:t>([^<]+)</a:t>").unwrap();
-    let texts: Vec<&str> = re.captures_iter(xml)
-        .filter_map(|cap| cap.get(1))
-        .map(|m| m.as_str())
-        .collect();
+    // 安全检查：限制输入大小，防止内存问题
+    const MAX_XML_SIZE: usize = 10 * 1024 * 1024; // 10MB
+    if xml.len() > MAX_XML_SIZE {
+        tracing::warn!("[PPT] XML 内容过大，跳过: {} bytes", xml.len());
+        return "[内容过大，无法解析]".to_string();
+    }
+    
+    // 匹配 <a:t> 标签中的文本，使用非贪婪匹配
+    let re = Regex::new(r"<a:t>([^<]*)</a:t>").unwrap();
+    
+    // 限制匹配次数，防止过多匹配导致的问题
+    let mut count = 0;
+    const MAX_MATCHES: usize = 10000;
+    let mut texts = Vec::new();
+    
+    for cap in re.captures_iter(xml) {
+        if count >= MAX_MATCHES {
+            break;
+        }
+        if let Some(m) = cap.get(1) {
+            // 限制单个匹配的长度
+            let text = m.as_str();
+            if text.len() > 1000 {
+                texts.push(&text[..1000]);
+            } else {
+                texts.push(text);
+            }
+            count += 1;
+        }
+    }
     
     texts.join(" ")
 }
