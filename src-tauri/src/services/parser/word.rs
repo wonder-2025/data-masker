@@ -69,8 +69,11 @@ pub fn parse_word(path: &PathBuf) -> Result<WordParseResult, String> {
         })?;
     
     // 提取文档内容
-    let (content, paragraphs) = {
-        // 读取主文档
+    let mut content = String::new();
+    let mut paragraphs = 0;
+    
+    // 1. 读取主文档内容 (word/document.xml)
+    {
         let mut doc = archive.by_name("word/document.xml")
             .map_err(|_| "无法找到文档内容: 文件可能已损坏或不是有效的 Word 文档".to_string())?;
         
@@ -78,9 +81,72 @@ pub fn parse_word(path: &PathBuf) -> Result<WordParseResult, String> {
         doc.read_to_string(&mut xml_content)
             .map_err(|e| format!("读取文档内容失败: {}", e))?;
         
-        // 提取文本内容
-        extract_text_from_docx(&xml_content)
-    };
+        // 提取主文档文本和文本框内容
+        let (doc_text, doc_paras) = extract_text_from_docx(&xml_content);
+        content.push_str(&doc_text);
+        paragraphs += doc_paras;
+    }
+    
+    // 2. 读取页眉 (word/header*.xml)
+    let header_patterns = ["word/header1.xml", "word/header2.xml", "word/header3.xml"];
+    for pattern in &header_patterns {
+        if let Ok(mut header_file) = archive.by_name(pattern) {
+            let mut xml_content = String::new();
+            if header_file.read_to_string(&mut xml_content).is_ok() {
+                let (header_text, _) = extract_text_from_docx(&xml_content);
+                if !header_text.trim().is_empty() {
+                    content.push_str("\n\n[页眉]\n");
+                    content.push_str(&header_text);
+                    tracing::debug!("[Word] 读取页眉: {}", pattern);
+                }
+            }
+        }
+    }
+    
+    // 3. 读取页脚 (word/footer*.xml)
+    let footer_patterns = ["word/footer1.xml", "word/footer2.xml", "word/footer3.xml"];
+    for pattern in &footer_patterns {
+        if let Ok(mut footer_file) = archive.by_name(pattern) {
+            let mut xml_content = String::new();
+            if footer_file.read_to_string(&mut xml_content).is_ok() {
+                let (footer_text, _) = extract_text_from_docx(&xml_content);
+                if !footer_text.trim().is_empty() {
+                    content.push_str("\n\n[页脚]\n");
+                    content.push_str(&footer_text);
+                    tracing::debug!("[Word] 读取页脚: {}", pattern);
+                }
+            }
+        }
+    }
+    
+    // 4. 读取脚注 (word/footnotes.xml)
+    if let Ok(mut footnotes_file) = archive.by_name("word/footnotes.xml") {
+        let mut xml_content = String::new();
+        if footnotes_file.read_to_string(&mut xml_content).is_ok() {
+            let (footnotes_text, _) = extract_text_from_docx(&xml_content);
+            if !footnotes_text.trim().is_empty() {
+                content.push_str("\n\n[脚注]\n");
+                content.push_str(&footnotes_text);
+                tracing::debug!("[Word] 读取脚注");
+            }
+        }
+    }
+    
+    // 5. 读取尾注 (word/endnotes.xml)
+    if let Ok(mut endnotes_file) = archive.by_name("word/endnotes.xml") {
+        let mut xml_content = String::new();
+        if endnotes_file.read_to_string(&mut xml_content).is_ok() {
+            let (endnotes_text, _) = extract_text_from_docx(&xml_content);
+            if !endnotes_text.trim().is_empty() {
+                content.push_str("\n\n[尾注]\n");
+                content.push_str(&endnotes_text);
+                tracing::debug!("[Word] 读取尾注");
+            }
+        }
+    }
+    
+    // 重新计算段落数
+    paragraphs = content.lines().filter(|line| !line.trim().is_empty()).count();
     
     if content.trim().is_empty() {
         return Err("Word 文档内容为空".to_string());
@@ -89,7 +155,7 @@ pub fn parse_word(path: &PathBuf) -> Result<WordParseResult, String> {
     Ok(WordParseResult { text: content, paragraphs })
 }
 
-/// 从 Word XML 中提取文本
+/// 从 Word XML 中提取文本（包括主内容和文本框）
 fn extract_text_from_docx(xml: &str) -> (String, usize) {
     // 匹配 <w:t> 标签中的文本
     let re = Regex::new(r"<w:t[^>]*>([^<]*)</w:t>").unwrap();
@@ -118,6 +184,34 @@ fn extract_text_from_docx(xml: &str) -> (String, usize) {
             }
             
             last_end = m.end();
+        }
+    }
+    
+    // 检查文本框内容 (w:txbxContent)
+    // 文本框内容通常在 <w:txbxContent> 标签内
+    if let Ok(txb盒_re) = Regex::new(r"<w:txbxContent[^>]*>([\s\S]*?)</w:txbxContent>") {
+        let mut has_textbox = false;
+        let mut textbox_text = String::new();
+        
+        for cap in txb盒_re.captures_iter(xml) {
+            if let Some(content) = cap.get(1) {
+                // 在文本框内容中提取 <w:t> 标签
+                let txb_re = Regex::new(r"<w:t[^>]*>([^<]*)</w:t>").unwrap();
+                for text_cap in txb_re.captures_iter(content.as_str()) {
+                    if let Some(t) = text_cap.get(1) {
+                        if !has_textbox {
+                            has_textbox = true;
+                            text.push_str("\n\n[文本框]\n");
+                        }
+                        textbox_text.push_str(t.as_str());
+                    }
+                }
+            }
+        }
+        
+        if has_textbox {
+            text.push_str(&textbox_text);
+            paragraph_count += 1;
         }
     }
     
@@ -180,6 +274,9 @@ impl WordMasker {
         let mut archive = ZipArchive::new(reader)
             .map_err(|e| format!("解析 ZIP 失败: {}", e))?;
         
+        // 收集需要处理的 XML 文件
+        let mut xml_files_to_process: Vec<(String, String)> = Vec::new();
+        
         // 处理 document.xml
         let mut document_xml = String::new();
         {
@@ -187,6 +284,52 @@ impl WordMasker {
                 .map_err(|e| format!("无法找到文档内容: {}", e))?;
             doc_file.read_to_string(&mut document_xml)
                 .map_err(|e| format!("读取文档内容失败: {}", e))?;
+            xml_files_to_process.push(("word/document.xml".to_string(), document_xml.clone()));
+        }
+        
+        // 处理页眉 (word/header*.xml)
+        let file_names: Vec<String> = archive.file_names().map(|n| n.to_string()).collect();
+        for name in &file_names {
+            if name.starts_with("word/header") && name.ends_with(".xml") {
+                if let Ok(mut file) = archive.by_name(name) {
+                    let mut xml_content = String::new();
+                    if file.read_to_string(&mut xml_content).is_ok() {
+                        tracing::debug!("[Word Mask] 处理页眉: {}", name);
+                        xml_files_to_process.push((name.clone(), xml_content));
+                    }
+                }
+            }
+        }
+        
+        // 处理页脚 (word/footer*.xml)
+        for name in &file_names {
+            if name.starts_with("word/footer") && name.ends_with(".xml") {
+                if let Ok(mut file) = archive.by_name(name) {
+                    let mut xml_content = String::new();
+                    if file.read_to_string(&mut xml_content).is_ok() {
+                        tracing::debug!("[Word Mask] 处理页脚: {}", name);
+                        xml_files_to_process.push((name.clone(), xml_content));
+                    }
+                }
+            }
+        }
+        
+        // 处理脚注 (word/footnotes.xml)
+        if let Ok(mut file) = archive.by_name("word/footnotes.xml") {
+            let mut xml_content = String::new();
+            if file.read_to_string(&mut xml_content).is_ok() {
+                tracing::debug!("[Word Mask] 处理脚注");
+                xml_files_to_process.push(("word/footnotes.xml".to_string(), xml_content));
+            }
+        }
+        
+        // 处理尾注 (word/endnotes.xml)
+        if let Ok(mut file) = archive.by_name("word/endnotes.xml") {
+            let mut xml_content = String::new();
+            if file.read_to_string(&mut xml_content).is_ok() {
+                tracing::debug!("[Word Mask] 处理尾注");
+                xml_files_to_process.push(("word/endnotes.xml".to_string(), xml_content));
+            }
         }
         
         // 执行替换
@@ -196,8 +339,16 @@ impl WordMasker {
                 tracing::warn!("检测到潜在的 XML 注入内容，跳过该替换");
                 continue;
             }
-            document_xml = document_xml.replace(original, masked);
+            
+            // 对所有 XML 文件执行替换
+            for (_, xml_content) in xml_files_to_process.iter_mut() {
+                *xml_content = xml_content.replace(original, masked);
+            }
         }
+        
+        // 构建替换后的 XML 文件映射
+        let xml_replacements: std::collections::HashMap<String, String> = 
+            xml_files_to_process.into_iter().collect();
         
         // 确保输出目录存在
         if let Some(parent) = output_path.parent() {
@@ -213,16 +364,16 @@ impl WordMasker {
         let options = zip::write::FileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated);
         
-        // 复制所有文件，替换 document.xml
+        // 复制所有文件，替换相关的 XML 文件
         for i in 0..archive.len() {
             let mut file = archive.by_index(i).map_err(|e| format!("读取 ZIP 条目失败: {}", e))?;
             let file_name = file.name().to_string();
             
-            if file_name == "word/document.xml" {
+            if let Some(modified_content) = xml_replacements.get(&file_name) {
                 // 写入修改后的内容
                 zip_writer.start_file(&file_name, options)
                     .map_err(|e| format!("写入 ZIP 条目失败: {:?}", e))?;
-                zip_writer.write_all(document_xml.as_bytes())
+                zip_writer.write_all(modified_content.as_bytes())
                     .map_err(|e| format!("写入内容失败: {:?}", e))?;
             } else {
                 // 直接复制其他文件

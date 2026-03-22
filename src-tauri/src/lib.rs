@@ -98,6 +98,7 @@ pub fn run() {
             commands::file::clear_temp_files,
             commands::file::scan_folder,
             commands::file::read_file_base64,
+            commands::file::get_log_path,
             
             // 脱敏处理
             commands::mask::detect_sensitive,
@@ -148,11 +149,48 @@ fn init_logger() {
         _ => tracing::Level::INFO,
     };
     
-    tracing_subscriber::fmt()
-        .with_max_level(level)
-        .with_target(false)
-        .with_thread_ids(false)
-        .init();
+    // 获取应用数据目录用于存储日志文件
+    let log_dir = dirs::data_local_dir()
+        .map(|p| p.join("DataMasker").join("logs"))
+        .unwrap_or_else(|| std::path::PathBuf::from("./logs"));
+    
+    // 创建日志目录
+    let _ = std::fs::create_dir_all(&log_dir);
+    
+    // 创建日志文件（每天一个文件）
+    let log_file = log_dir.join(format!("data-masker-{}.log", 
+        chrono::Local::now().format("%Y-%m-%d")));
+    
+    // 创建文件目标
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_file)
+        .ok();
+    
+    if let Some(file) = file {
+        use tracing_subscriber::fmt::writer::MakeWriterExt;
+        
+        // 同时输出到控制台和文件
+        let (non_blocking, _guard) = tracing_appender::non_blocking(file);
+        
+        tracing_subscriber::fmt()
+            .with_max_level(level)
+            .with_target(true)
+            .with_thread_ids(true)
+            .with_writer(std::io::stdout.and(non_blocking))
+            .with_ansi(false) // 文件日志不使用ANSI颜色
+            .init();
+        
+        tracing::info!("日志文件: {:?}", log_file);
+    } else {
+        // 回退到控制台日志
+        tracing_subscriber::fmt()
+            .with_max_level(level)
+            .with_target(false)
+            .with_thread_ids(false)
+            .init();
+    }
     
     tracing::info!("日志级别设置为: {}", log_level);
 }

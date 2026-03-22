@@ -616,34 +616,78 @@ fn read_excel_workbook<R: std::io::Read + std::io::Seek>(workbook: &mut impl cal
 fn read_pptx_preview(path: &PathBuf) -> Result<String, String> {
     use std::io::Read;
     use zip::ZipArchive;
+    use std::time::{Duration, Instant};
+    
+    tracing::info!("[PPT] 开始读取PPT文件: {:?}", path);
+    
+    // 设置超时保护：30秒
+    let timeout = Duration::from_secs(30);
+    let start_time = Instant::now();
     
     let file = std::fs::File::open(path)
-        .map_err(|e| format!("打开文件失败: {}", e))?;
+        .map_err(|e| {
+            tracing::error!("[PPT] 打开文件失败: {}", e);
+            format!("打开文件失败: {}", e)
+        })?;
     
     let mut archive = ZipArchive::new(file)
-        .map_err(|e| format!("解析ZIP失败: {}", e))?;
+        .map_err(|e| {
+            tracing::error!("[PPT] 解析ZIP失败: {}", e);
+            format!("解析ZIP失败: {}", e)
+        })?;
     
     let mut content = String::new();
+    let mut slide_count = 0;
+    let max_slides = 30; // 降低限制，最多处理30页幻灯片
     
     // 遍历所有幻灯片
-    for i in 0..archive.len() {
-        if let Ok(mut file) = archive.by_index(i) {
-            let name = file.name().to_string();
-            if name.starts_with("ppt/slides/slide") && name.ends_with(".xml") {
+    let total_files = archive.len();
+    for i in 0..total_files {
+        // 检查超时
+        if start_time.elapsed() > timeout {
+            tracing::warn!("[PPT] 读取超时，已处理 {} 页幻灯片", slide_count);
+            content.push_str(&format!("\n... (读取超时，仅显示前{}页)\n", slide_count));
+            break;
+        }
+        
+        // 限制处理数量，防止内存溢出
+        if slide_count >= max_slides {
+            content.push_str(&format!("\n... (共超过{}页，仅显示前{}页)\n", max_slides, max_slides));
+            break;
+        }
+        
+        // 使用 try-catch 风格的错误处理
+        let file_result = archive.by_index(i);
+        let Ok(mut file) = file_result else {
+            tracing::warn!("[PPT] 无法读取第 {} 个文件，跳过", i);
+            continue;
+        };
+        
+        let name = file.name().to_string();
+        if name.starts_with("ppt/slides/slide") && name.ends_with(".xml") {
+            // 安全的文本读取
+            let read_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let mut xml_content = String::new();
-                file.read_to_string(&mut xml_content)
-                    .ok();
-                
-                // 提取文本
-                let slide_text = extract_text_from_pptx_xml(&xml_content);
-                if !slide_text.is_empty() {
-                    content.push_str(&format!("=== 幻灯片 {} ===\n", i + 1));
-                    content.push_str(&slide_text);
-                    content.push_str("\n\n");
-                }
+                file.read_to_string(&mut xml_content).map(|_| xml_content)
+            }));
+            
+            let Ok(Ok(xml_content)) = read_result else {
+                tracing::warn!("[PPT] 读取幻灯片 {} 失败，跳过", i + 1);
+                continue;
+            };
+            
+            // 提取文本（带错误处理）
+            let slide_text = extract_text_from_pptx_xml(&xml_content);
+            if !slide_text.is_empty() {
+                content.push_str(&format!("=== 幻灯片 {} ===\n", i + 1));
+                content.push_str(&slide_text);
+                content.push_str("\n\n");
+                slide_count += 1;
             }
         }
     }
+    
+    tracing::info!("[PPT] 读取完成，共处理{}页幻灯片", slide_count);
     
     if content.is_empty() {
         Ok("[PowerPoint 文件内容为空或无法解析]".to_string())
@@ -742,6 +786,19 @@ pub async fn read_file_base64(path: String) -> Result<String, String> {
     });
     
     Ok(result.to_string())
+}
+
+/// 获取日志文件路径
+#[command]
+pub fn get_log_path() -> Result<String, String> {
+    let log_dir = dirs::data_local_dir()
+        .map(|p| p.join("DataMasker").join("logs"))
+        .unwrap_or_else(|| std::path::PathBuf::from("./logs"));
+    
+    let log_path = log_dir.join(format!("data-masker-{}.log", 
+        chrono::Local::now().format("%Y-%m-%d")));
+    
+    Ok(log_path.to_string_lossy().to_string())
 }
 
 /// 根据文件扩展名获取MIME类型

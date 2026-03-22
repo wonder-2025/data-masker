@@ -176,13 +176,13 @@ let startTime = null
 // 开始处理
 async function startProcessing() {
   const files = filesStore.files
-  const rules = rulesStore.enabledRules
+  // 获取已启用的规则，并双重保险过滤确保只传 enabled=true 的规则
+  let rules = rulesStore.enabledRules.filter(r => r.enabled)
   
   console.log('[DEBUG] ========== 处理开始 ==========')
   console.log('[DEBUG] 文件数量:', files.length)
-  console.log('[DEBUG] 文件列表:', JSON.stringify(files, null, 2))
-  console.log('[DEBUG] 规则数量:', rules.length)
-  console.log('[DEBUG] 规则列表:', rules.map(r => ({ id: r.id, name: r.name, enabled: r.enabled })))
+  console.log('[DEBUG] 已过滤的有效规则数量:', rules.length)
+  console.log('[DEBUG] 已过滤的规则详情:', rules.map(r => ({ id: r.id, name: r.name, enabled: r.enabled })))
   
   if (files.length === 0) {
     ElMessage.warning('没有要处理的文件')
@@ -235,16 +235,15 @@ async function startProcessing() {
         console.log('[DEBUG] ========== 文件处理 ==========')
         console.log('[DEBUG] 文件路径:', file.path)
         console.log('[DEBUG] 输出目录:', outputDir)
-        console.log('[DEBUG] 规则数量:', rules.length)
         
-        // 检查所有规则的 enabled 状态
-        const allEnabled = rules.every(r => r.enabled)
-        console.log('[DEBUG] 所有规则enabled状态:', allEnabled)
-        console.log('[DEBUG] 规则详情:', rules.map(r => ({ id: r.id, enabled: r.enabled })))
+        // 再次确认规则状态（确保只传启用的规则）
+        const rulesForBackend = rules.filter(r => r.enabled)
+        console.log('[DEBUG] 传给后端的规则数量:', rulesForBackend.length)
+        console.log('[DEBUG] 传给后端的规则ID:', rulesForBackend.map(r => r.id))
         
         const result = await invoke('process_file', {
           filePath: file.path,
-          rules: rules,
+          rules: rulesForBackend,
           outputDir: outputDir || null
         })
         

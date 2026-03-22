@@ -223,14 +223,22 @@ pub async fn process_file(
     let content = crate::commands::file::read_file_content(file_path.clone()).await?;
     
     // 安全检查：只使用已启用的规则（双重保险）
+    let rules_count = rules.len();
     let enabled_rules: Vec<Rule> = rules.into_iter()
         .filter(|r| r.enabled)
         .collect();
     
+    tracing::info!("[DEBUG] 原始规则数量: {}", rules_count);
     tracing::info!("[DEBUG] 过滤后的启用规则数量: {}", enabled_rules.len());
+    
+    // 详细记录每个规则的启用状态
+    for (i, r) in enabled_rules.iter().enumerate() {
+        tracing::info!("[DEBUG] 启用规则[{}]: id={}, enabled={}", i, r.id, r.enabled);
+    }
     
     // 检查是否有启用的规则
     if enabled_rules.is_empty() {
+        tracing::error!("[DEBUG] 没有启用的脱敏规则!");
         return Err("没有启用的脱敏规则，请先在规则配置中启用至少一条规则".to_string());
     }
     
@@ -379,11 +387,12 @@ pub async fn process_file(
             }
         }
         "pptx" => {
-            // PPT 文件处理 - 目前仅支持复制
+            // PPT 文件处理 - 当前功能开发中
             // TODO: 实现 PPT 文件的脱敏处理
-            std::fs::copy(&input_path, &output_path)
-                .map_err(|e| format!("复制文件失败: {}", e))?;
-            Ok(())
+            tracing::warn!("[PPT] PPT 脱敏功能正在开发中，仅复制文件");
+            
+            // 返回错误提示用户功能开发中
+            return Err("⚠️ PPT 脱敏功能正在开发中，暂不支持。\n\n当前状态：\n- 文件预览：✅ 已支持\n- 文件脱敏：🚧 开发中\n\n您可以：\n1. 稍后再试\n2. 将 PPT 转换为 PDF 后使用 PDF 脱敏\n3. 使用其他支持的文件格式".to_string());
         }
         _ => {
             // 其他格式保存为文本

@@ -433,16 +433,34 @@ export const useRulesStore = defineStore('rules', () => {
         console.log('[规则加载] 原始数据keys:', Object.keys(data))
         
         if (data.builtin && Array.isArray(data.builtin)) {
+          // 详细调试：显示每个规则的 enabled 状态
+          const ruleStatusList = data.builtin.map(r => ({ id: r.id, name: r.name, enabled: r.enabled }))
+          console.log('[规则加载] 内置规则状态列表:', ruleStatusList)
+          
           builtinRulesList.value = data.builtin
           const enabledCount = data.builtin.filter(r => r.enabled).length
           console.log('[规则加载] 已加载', data.builtin.length, '条内置规则，其中', enabledCount, '条启用')
+          
+          // 调试：显示未启用的规则
+          const disabledRules = data.builtin.filter(r => !r.enabled).map(r => r.id)
+          if (disabledRules.length > 0) {
+            console.log('[规则加载] 未启用的规则:', disabledRules)
+          }
         }
         if (data.custom && Array.isArray(data.custom)) {
           customRules.value = data.custom
-          console.log('[规则加载] 已加载', data.custom.length, '条自定义规则')
+          const customEnabled = data.custom.filter(r => r.enabled).length
+          console.log('[规则加载] 已加载', data.custom.length, '条自定义规则，其中', customEnabled, '条启用')
         }
+        
+        // 最终验证：显示所有启用的规则
+        const allEnabled = [...builtinRulesList.value, ...customRules.value].filter(r => r.enabled).map(r => r.id)
+        console.log('[规则加载] 最终启用的规则ID列表:', allEnabled)
       } else {
         console.log('[规则加载] 没有找到保存的规则，使用默认配置')
+        // 显示默认配置的启用规则
+        const defaultEnabled = builtinRules.filter(r => r.enabled).map(r => r.id)
+        console.log('[规则加载] 默认启用的规则ID列表:', defaultEnabled)
       }
     } catch (e) {
       console.error('加载规则失败:', e)
