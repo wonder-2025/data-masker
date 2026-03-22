@@ -703,42 +703,52 @@ fn read_pptx_preview(path: &PathBuf) -> Result<String, String> {
     }
 }
 
-/// 从 PowerPoint XML 中提取文本
+/// 从 PowerPoint XML 中提取文本 - 使用安全的字符串操作
 fn extract_text_from_pptx_xml(xml: &str) -> String {
-    use regex::Regex;
-    
-    // 安全检查：限制输入大小，防止内存问题
-    const MAX_XML_SIZE: usize = 10 * 1024 * 1024; // 10MB
+    // 安全检查：限制输入大小
+    const MAX_XML_SIZE: usize = 5 * 1024 * 1024; // 5MB
     if xml.len() > MAX_XML_SIZE {
-        tracing::warn!("[PPT] XML 内容过大，跳过: {} bytes", xml.len());
-        return "[内容过大，无法解析]".to_string();
+        tracing::warn!("[PPT] XML 内容过大: {} bytes", xml.len());
+        return "[内容过大]".to_string();
     }
     
-    // 匹配 <a:t> 标签中的文本，使用非贪婪匹配
-    let re = Regex::new(r"<a:t>([^<]*)</a:t>").unwrap();
+    // 使用安全的字符串查找，避免 regex 库
+    let mut results = Vec::new();
+    let mut search_pos = 0;
+    const MAX_MATCHES: usize = 5000;
+    const MAX_TEXT_LEN: usize = 500;
     
-    // 限制匹配次数，防止过多匹配导致的问题
-    let mut count = 0;
-    const MAX_MATCHES: usize = 10000;
-    let mut texts = Vec::new();
-    
-    for cap in re.captures_iter(xml) {
-        if count >= MAX_MATCHES {
-            break;
-        }
-        if let Some(m) = cap.get(1) {
-            // 限制单个匹配的长度
-            let text = m.as_str();
-            if text.len() > 1000 {
-                texts.push(&text[..1000]);
-            } else {
-                texts.push(text);
+    while results.len() < MAX_MATCHES {
+        // 查找 <a:t> 标签开始
+        match xml[search_pos..].find("<a:t>") {
+            Some(start_idx) => {
+                let absolute_start = search_pos + start_idx + 5; // 跳过 <a:t>
+                // 查找 </a:t> 结束标签
+                match xml[absolute_start..].find("</a:t>") {
+                    Some(end_idx) => {
+                        let text = &xml[absolute_start..absolute_start + end_idx];
+                        // 限制单个文本长度
+                        let truncated = if text.len() > MAX_TEXT_LEN {
+                            &text[..MAX_TEXT_LEN]
+                        } else {
+                            text
+                        };
+                        results.push(truncated.to_string());
+                        search_pos = absolute_start + end_idx;
+                    }
+                    None => break,
+                }
             }
-            count += 1;
+            None => break,
         }
     }
     
-    texts.join(" ")
+    if results.is_empty() {
+        // 尝试备选方案：简单的文本提取
+        "[无法提取文本]".to_string()
+    } else {
+        results.join(" ")
+    }
 }
 
 /// 扫描文件夹中的支持文件
