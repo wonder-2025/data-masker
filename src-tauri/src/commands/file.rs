@@ -645,7 +645,7 @@ fn read_pptx_preview(path: &PathBuf) -> Result<String, String> {
     })).map_err(|e| {
         tracing::error!("[PPT] 预览崩溃: {:?}", e);
         "文件预览失败，可能是文件格式不兼容或文件已损坏".to_string()
-    })
+    })?
 }
 
 fn read_pptx_preview_inner(path: &PathBuf) -> Result<String, String> {
